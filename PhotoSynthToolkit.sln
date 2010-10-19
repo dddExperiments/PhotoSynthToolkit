@@ -1,0 +1,77 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotoSynth2PMVS", "PhotoSynth2PMVS\script\PhotoSynth2PMVS.vcproj", "{51B29AE2-2BE4-42AC-B9EA-4F54A0D3E3F5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD} = {64AC4653-466C-4AA1-A9E0-61B3877944CD}
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63} = {67A19BF4-10C6-4841-96A3-6B337AF7AD63}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotoSynthDownloader", "PhotoSynthDownloader\script\PhotoSynthDownloader.vcproj", "{ABC09F09-AEC2-4CEB-AAAB-737C87C143E6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63} = {67A19BF4-10C6-4841-96A3-6B337AF7AD63}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotoSynthParser", "PhotoSynthParser\script\PhotoSynthParser.vcproj", "{67A19BF4-10C6-4841-96A3-6B337AF7AD63}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194} = {F63E2D7B-0963-4BAD-93BA-16CE45ECA194}
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7} = {697686E8-AB84-402D-BDEA-035E81A3B4A7}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PhotoSynthViewer", "PhotoSynthViewer\script\PhotoSynthViewer.vcproj", "{99A4FD48-72FA-4627-8CCF-D98AD3842A9B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63} = {67A19BF4-10C6-4841-96A3-6B337AF7AD63}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dependencies", "Dependencies", "{151D36DD-9A99-4A6E-9206-DAE27399C4F1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tinyxml", "Dependencies\tinyxml\script\tinyxml.vcproj", "{697686E8-AB84-402D-BDEA-035E81A3B4A7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jpeg", "Dependencies\jpeg\jpeg.vcproj", "{64AC4653-466C-4AA1-A9E0-61B3877944CD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "json_spirit", "Dependencies\json_spirit\script\json_spirit.vcproj", "{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{51B29AE2-2BE4-42AC-B9EA-4F54A0D3E3F5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{51B29AE2-2BE4-42AC-B9EA-4F54A0D3E3F5}.Debug|Win32.Build.0 = Debug|Win32
+		{51B29AE2-2BE4-42AC-B9EA-4F54A0D3E3F5}.Release|Win32.ActiveCfg = Release|Win32
+		{51B29AE2-2BE4-42AC-B9EA-4F54A0D3E3F5}.Release|Win32.Build.0 = Release|Win32
+		{ABC09F09-AEC2-4CEB-AAAB-737C87C143E6}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ABC09F09-AEC2-4CEB-AAAB-737C87C143E6}.Debug|Win32.Build.0 = Debug|Win32
+		{ABC09F09-AEC2-4CEB-AAAB-737C87C143E6}.Release|Win32.ActiveCfg = Release|Win32
+		{ABC09F09-AEC2-4CEB-AAAB-737C87C143E6}.Release|Win32.Build.0 = Release|Win32
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63}.Debug|Win32.ActiveCfg = Debug|Win32
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63}.Debug|Win32.Build.0 = Debug|Win32
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63}.Release|Win32.ActiveCfg = Release|Win32
+		{67A19BF4-10C6-4841-96A3-6B337AF7AD63}.Release|Win32.Build.0 = Release|Win32
+		{99A4FD48-72FA-4627-8CCF-D98AD3842A9B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{99A4FD48-72FA-4627-8CCF-D98AD3842A9B}.Debug|Win32.Build.0 = Debug|Win32
+		{99A4FD48-72FA-4627-8CCF-D98AD3842A9B}.Release|Win32.ActiveCfg = Release|Win32
+		{99A4FD48-72FA-4627-8CCF-D98AD3842A9B}.Release|Win32.Build.0 = Release|Win32
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7}.Debug|Win32.Build.0 = Debug|Win32
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7}.Release|Win32.ActiveCfg = Release|Win32
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7}.Release|Win32.Build.0 = Release|Win32
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD}.Debug|Win32.Build.0 = Debug|Win32
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD}.Release|Win32.ActiveCfg = Release|Win32
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD}.Release|Win32.Build.0 = Release|Win32
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Debug|Win32.Build.0 = Debug|Win32
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Release|Win32.ActiveCfg = Release|Win32
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{697686E8-AB84-402D-BDEA-035E81A3B4A7} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
+		{64AC4653-466C-4AA1-A9E0-61B3877944CD} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
+		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
+	EndGlobalSection
+EndGlobal
