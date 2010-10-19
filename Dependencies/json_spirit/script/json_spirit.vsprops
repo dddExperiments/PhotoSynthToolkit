@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="json_spirit"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="$(json_spirit)\include"
+	/>
+	<UserMacro
+		Name="json_spirit"
+		Value="$(SolutionDir)\Dependencies\json_spirit"
+	/>
+</VisualStudioPropertySheet>
