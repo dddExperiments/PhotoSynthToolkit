@@ -19,7 +19,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 PhotoSynth toolkit:
-------------------------------
+-------------------
 
 - PhotoSynthDownloader: download PhotoSynth point cloud and cameras parameters
 - PhotoSynth2PMVS: enable to run PMVS2 with a downloaded PhotoSynth point cloud

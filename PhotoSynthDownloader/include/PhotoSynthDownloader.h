@@ -30,6 +30,7 @@ typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
 namespace PhotoSynth
 {
 	class Parser;
+
 	class Downloader
 	{
 		public:
@@ -45,6 +46,7 @@ namespace PhotoSynth
 			void downloadAllBinFiles(const std::string& outputFolder, Parser* parser);
 			void downloadAllThumbFiles(const std::string& outputFolder, const JsonInfo& info);
 			void savePly(const std::string& outputFolder, Parser* parser);
+			void saveCamerasParameters(const std::string& outputFolder, Parser* parser);
 
 			//socket helper
 			SocketPtr connect(const std::string& url);

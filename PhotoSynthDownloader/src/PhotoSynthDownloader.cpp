@@ -24,6 +24,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <OgreStringVector.h>
+#include <OgreMatrix3.h>
 
 using namespace PhotoSynth;
 namespace bf = boost::filesystem;
@@ -98,6 +99,7 @@ bool Downloader::download(const std::string& guid, const std::string& outputFold
 	}
 
 	parser.parseJson(jsonFilePath, guid);
+	saveCamerasParameters(outputFolder, &parser);
 
 	downloadAllBinFiles(outputFolder, &parser);
 
@@ -347,6 +349,47 @@ void Downloader::savePly(const std::string& outputFolder, Parser* parser)
 			}
 			output.close();
 		}
+
+		filepath.str("");
+		filepath << outputFolder << "/bin/coord_system_" << i << "_with_cameras.ply";
+
+		if (!bf::exists(filepath.str()))
+		{
+			std::ofstream output(filepath.str().c_str());
+			if (output.is_open())
+			{
+				output << "ply" << std::endl;
+				output << "format ascii 1.0" << std::endl;
+				output << "element vertex " << parser->getNbVertex(i) + parser->getNbCamera(i) << std::endl;
+				output << "property float x" << std::endl;
+				output << "property float y" << std::endl;
+				output << "property float z" << std::endl;
+				output << "property uchar red" << std::endl;
+				output << "property uchar green" << std::endl;
+				output << "property uchar blue" << std::endl;
+				output << "element face 0" << std::endl;
+				output << "property list uchar int vertex_indices" << std::endl;
+				output << "end_header" << std::endl;
+
+				for (unsigned int j=0; j<parser->getNbPointCloud(i); ++j)
+				{
+					const PointCloud& pointCloud = parser->getPointCloud(i, j);
+					for (unsigned int k=0; k<pointCloud.vertices.size(); ++k)
+					{
+						Ogre::Vector3 pos = pointCloud.vertices[k].position;
+						Ogre::ColourValue color = pointCloud.vertices[k].color;
+						output << pos.x << " " << pos.y << " " << pos.z << " " << (int)(color.r*255.0f) << " " << (int)(color.g*255.0f) << " " << (int)(color.b*255.0f) << std::endl;
+					}
+				}
+
+				for (unsigned int j=0; j<parser->getNbCamera(i); ++j)
+				{
+					Ogre::Vector3 pos = parser->getCamera(i, j).position;
+					output << pos.x << " " << pos.y << " " << pos.z << " 255 255 0" << std::endl;
+				}
+			}
+			output.close();
+		}
 	}
 }
 
@@ -405,7 +448,7 @@ std::string Downloader::createGETHeader(const std::string& get, const std::strin
 
 unsigned int Downloader::getContentLength(std::istream& header)
 {
-	//Content-Length: 3789
+	//example: "Content-Length: 3789" -> 3789
 
 	int length = 0;
 	std::string contentLength = "Content-Length: ";
@@ -445,4 +488,60 @@ bool Downloader::saveBinFile(const std::string& filepath, std::istream& input, u
 	delete[] buffer;
 
 	return true;
+}
+
+void Downloader::saveCamerasParameters(const std::string& outputFolder, Parser* parser)
+{
+	for (unsigned int i=0; i<parser->getNbCoordSystem(); ++i)
+	{
+		unsigned int nbCamera = parser->getJsonInfo().thumbs.size();
+		std::vector<const Camera*> cameras(nbCamera);
+		memset(&cameras[0], NULL, sizeof(Camera*)*nbCamera);
+
+		unsigned int nbCameraInCoordSystem = parser->getNbCamera(i);
+		for (unsigned int j=0; j<nbCameraInCoordSystem; ++j)
+		{
+			const PhotoSynth::Camera& cam = parser->getCamera(i, j);
+			cameras[cam.index] = &cam;
+		}
+
+		std::stringstream filepath;
+		filepath << outputFolder << "/bin/coord_system_" << i << "_cameras.txt";
+
+		std::ofstream output(filepath.str().c_str());
+		if (output.is_open())
+		{
+			for (unsigned int j=0; j<nbCamera; ++j)
+			{
+				if (cameras[j])
+				{
+					const Camera* cam = cameras[j];
+					output << cam->focal << " " << cam->distort1 << " " << cam->distort2 << std::endl;
+					
+					Ogre::Matrix3 rot;
+					cam->orientation.ToRotationMatrix(rot);
+
+					output << rot[0][0] << " " << rot[0][1] << " " << rot[0][2] << std::endl;
+					output << rot[1][0] << " " << rot[1][1] << " " << rot[1][2] << std::endl;
+					output << rot[2][0] << " " << rot[2][1] << " " << rot[2][2] << std::endl;
+
+					output << cam->position.x << " " << cam->position.y << " " << cam->position.z << std::endl;
+				}
+				else
+				{
+					//focal k1 k2
+					output << "0 0 0" << std::endl;
+					
+					//rotation
+					output << "0 0 0" << std::endl;
+					output << "0 0 0" << std::endl;
+					output << "0 0 0" << std::endl;
+					
+					//translation
+					output << "0 0 0" << std::endl;
+				}				
+			}
+		}
+		output.close();
+	}
 }
