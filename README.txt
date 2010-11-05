@@ -26,7 +26,7 @@ PhotoSynth toolkit:
 
 - PhotoSynthViewer: Ogre3D PhotoSynth viewer [not working yet]
 
-The full package is available at http://www.visual-experiments.com/downloads/PhotoSynthToolkit1.zip (not yet)
+The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit4.zip
 Created by Henri Astre http://www.visual-experiments.com released under MIT license.
 
 Dependencies used:
