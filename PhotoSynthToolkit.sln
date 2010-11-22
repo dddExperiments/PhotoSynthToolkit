@@ -31,6 +31,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jpeg", "Dependencies\jpeg\j
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "json_spirit", "Dependencies\json_spirit\script\json_spirit.vcproj", "{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ThreadPool", "Dependencies\threadpool\script\threadpool.vcproj", "{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -65,6 +67,10 @@ Global
 		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Debug|Win32.Build.0 = Debug|Win32
 		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Release|Win32.ActiveCfg = Release|Win32
 		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194}.Release|Win32.Build.0 = Release|Win32
+		{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34}.Debug|Win32.Build.0 = Debug|Win32
+		{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34}.Release|Win32.ActiveCfg = Release|Win32
+		{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -73,5 +79,6 @@ Global
 		{697686E8-AB84-402D-BDEA-035E81A3B4A7} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
 		{64AC4653-466C-4AA1-A9E0-61B3877944CD} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
 		{F63E2D7B-0963-4BAD-93BA-16CE45ECA194} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
+		{EA9FDD79-5532-4CC6-9C85-EEAF24DE9E34} = {151D36DD-9A99-4A6E-9206-DAE27399C4F1}
 	EndGlobalSection
 EndGlobal

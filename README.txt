@@ -23,8 +23,7 @@ PhotoSynth toolkit:
 
 - PhotoSynthDownloader: download PhotoSynth point cloud and cameras parameters
 - PhotoSynth2PMVS: enable to run PMVS2 with a downloaded PhotoSynth point cloud
-
-- PhotoSynthViewer: Ogre3D PhotoSynth viewer [not working yet]
+- PhotoSynthViewer: Ogre3D PhotoSynth viewer
 
 The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit4.zip
 Created by Henri Astre http://www.visual-experiments.com released under MIT license.
@@ -37,3 +36,4 @@ TinyXMl http://sourceforge.net/projects/tinyxml/ created by Lee Thomason
 JSON Spirit: http://www.codeproject.com/KB/recipes/JSON_Spirit.aspx created by John W. Wilkinson
 Ogre3D: http://www.ogre3d.org/ 
 Boost: http://www.boost.org/
+threadpool: http://threadpool.sourceforge.net/ created by Philipp Henkel
