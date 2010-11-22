@@ -1,0 +1,4 @@
+- PhotoSynthParser: add lowercase for guid parsing in case the user provide uppercase guid
+- PhotoSynthDownloader: add bundler like ply output with colored cameras position + add multithreaded thumbs downloader
+- PhotoSynthViewer : this is now working !
+- remove PhotoSynthMesh (h/cpp)
