@@ -45,6 +45,7 @@ namespace PhotoSynth
 			bool downloadJson(const std::string& jsonFilePath, const std::string& jsonUrl);
 			void downloadAllBinFiles(const std::string& outputFolder, Parser* parser);
 			void downloadAllThumbFiles(const std::string& outputFolder, const JsonInfo& info);
+			void downloadThumb(const std::string& outputFolder, const JsonInfo& info, unsigned int index);
 			void savePly(const std::string& outputFolder, Parser* parser);
 			void saveCamerasParameters(const std::string& outputFolder, Parser* parser);
 

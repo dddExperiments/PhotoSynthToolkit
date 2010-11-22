@@ -22,6 +22,7 @@
 
 #include "PhotoSynthDownloader.h"
 
+#include <boost/threadpool.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <OgreStringVector.h>
 #include <OgreMatrix3.h>
@@ -276,38 +277,42 @@ void Downloader::downloadAllThumbFiles(const std::string& outputFolder, const Js
 {
 	std::cout << std::endl;
 	std::cout << "Downloading " << info.thumbs.size() << " thumbs" << std::endl;
+
+	boost::threadpool::pool tp(8);
 	for (unsigned int i=0; i<info.thumbs.size(); ++i)
+		tp.schedule(boost::bind(&Downloader::downloadThumb, this, outputFolder, info, i));
+}
+
+void Downloader::downloadThumb(const std::string& outputFolder, const JsonInfo& info, unsigned int index)
+{
+	char buf[10];
+	sprintf(buf, "%08d", index);
+
+	std::stringstream filename;
+	filename << "thumbs/" << buf << ".jpg";
+
+	std::string filepath = Parser::createFilePath(outputFolder, filename.str());
+	if (!bf::exists(filepath))
 	{
-		char buf[10];
-		sprintf(buf, "%08d", i);
+		std::string host = extractHost(info.thumbs[index].url);
+		SocketPtr sock = connect(host);
 
-		std::stringstream filename;
-		filename << "thumbs/" << buf << ".jpg";
+		std::string header = createGETHeader(removeHost(info.thumbs[index].url, host), host);
 
-		std::string filepath = Parser::createFilePath(outputFolder, filename.str());
-		if (!bf::exists(filepath))
-		{
-			std::string host = extractHost(info.thumbs[i].url);
-			SocketPtr sock = connect(host);
+		//send GET request
+		boost::system::error_code error;
+		boost::asio::write(*sock, boost::asio::buffer(header.c_str()), boost::asio::transfer_all(), error);
 
-			std::string header = createGETHeader(removeHost(info.thumbs[i].url, host), host);
+		//read the response (header + content)
+		boost::asio::streambuf response;
+		while (boost::asio::read(*sock, response, boost::asio::transfer_at_least(1), error));
 
-			//send GET request
-			boost::system::error_code error;
-			boost::asio::write(*sock, boost::asio::buffer(header.c_str()), boost::asio::transfer_all(), error);
+		std::istream response_stream(&response);
+		int length = getContentLength(response_stream);
 
-			//read the response (header + content)
-			boost::asio::streambuf response;
-			while (boost::asio::read(*sock, response, boost::asio::transfer_at_least(1), error));
+		saveBinFile(filepath, response_stream, length);			
 
-			std::istream response_stream(&response);
-			int length = getContentLength(response_stream);
-
-			saveBinFile(filepath, response_stream, length);			
-
-			sock->close();
-			std::cout << "[" << (i+1) << "/" << info.thumbs.size() << "] " << filename.str() << " downloaded" << std::endl;
-		}
+		sock->close();
 	}
 }
 
@@ -360,7 +365,7 @@ void Downloader::savePly(const std::string& outputFolder, Parser* parser)
 			{
 				output << "ply" << std::endl;
 				output << "format ascii 1.0" << std::endl;
-				output << "element vertex " << parser->getNbVertex(i) + parser->getNbCamera(i) << std::endl;
+				output << "element vertex " << parser->getNbVertex(i) + 2*parser->getNbCamera(i) << std::endl;
 				output << "property float x" << std::endl;
 				output << "property float y" << std::endl;
 				output << "property float z" << std::endl;
@@ -384,8 +389,17 @@ void Downloader::savePly(const std::string& outputFolder, Parser* parser)
 
 				for (unsigned int j=0; j<parser->getNbCamera(i); ++j)
 				{
-					Ogre::Vector3 pos = parser->getCamera(i, j).position;
-					output << pos.x << " " << pos.y << " " << pos.z << " 255 255 0" << std::endl;
+					const PhotoSynth::Camera cam = parser->getCamera(i, j);
+					Ogre::Vector3 pos = cam.position;
+
+					if ((j % 2) == 0)
+						output << pos.x << " " << pos.y << " " << pos.z << " 0 255 0" << std::endl;
+					else
+						output << pos.x << " " << pos.y << " " << pos.z << " 255 0 0" << std::endl;
+
+					Ogre::Vector3 offset(0.0f, -0.05f, 0.0f);					
+					Ogre::Vector3 p = pos + cam.orientation.Inverse() * offset;
+					output << p.x << " " << p.y << " " << p.z << " 255 255 0" << std::endl;
 				}
 			}
 			output.close();
@@ -511,6 +525,7 @@ void Downloader::saveCamerasParameters(const std::string& outputFolder, Parser* 
 		std::ofstream output(filepath.str().c_str());
 		if (output.is_open())
 		{
+			output << nbCamera << std::endl;
 			for (unsigned int j=0; j<nbCamera; ++j)
 			{
 				if (cameras[j])
@@ -521,11 +536,16 @@ void Downloader::saveCamerasParameters(const std::string& outputFolder, Parser* 
 					Ogre::Matrix3 rot;
 					cam->orientation.ToRotationMatrix(rot);
 
+					Ogre::Matrix3 Rx;
+					Rx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(180.0f));
+					rot = Rx.Transpose() * rot.Transpose();
+
 					output << rot[0][0] << " " << rot[0][1] << " " << rot[0][2] << std::endl;
 					output << rot[1][0] << " " << rot[1][1] << " " << rot[1][2] << std::endl;
 					output << rot[2][0] << " " << rot[2][1] << " " << rot[2][2] << std::endl;
 
-					output << cam->position.x << " " << cam->position.y << " " << cam->position.z << std::endl;
+					Ogre::Vector3 position = - rot * cam->position;
+					output << position.x << " " << position.y << " " << position.z << std::endl;
 				}
 				else
 				{
