@@ -225,6 +225,7 @@ std::string Parser::getGuid(const std::string& filepath)
 	std::ifstream input(filepath.c_str());
 	std::getline(input, line);
 	input.close();
+	Ogre::StringUtil::toLowerCase(line);
 
 	return line;
 }
