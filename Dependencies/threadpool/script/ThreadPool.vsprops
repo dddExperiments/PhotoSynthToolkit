@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="ThreadPool"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="$(ThreadPool)\include"
+	/>
+	<UserMacro
+		Name="ThreadPool"
+		Value="$(SolutionDir)\Dependencies\ThreadPool"
+	/>
+</VisualStudioPropertySheet>
