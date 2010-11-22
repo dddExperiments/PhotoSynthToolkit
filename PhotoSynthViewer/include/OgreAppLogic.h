@@ -66,7 +66,6 @@ protected:
 	void createCamera(void);
 	void createScene(void);
 	
-	
 	bool processInputs(Ogre::Real deltaTime);
 
 	// OGRE
@@ -85,10 +84,14 @@ protected:
 	GPUBillboardSet* mDensePointCloud;
 	std::string mProjectPath;
 	std::string mDensePointCloudFilePath;
-
+		
+	std::vector<PhotoSynth::Vertex>	importPly(const std::string& filepath);
 	void adaptPlaneToCamera(const PhotoSynth::Camera& cam);
 	void createCameraPlane();
 	void createCameraMaterial();	
+	void parsePictureList(const std::string& picListFilePath);
+	std::vector<std::string> mPictureFilenames;
+	bool mThumbsAvailable;
 
 	void nextCamera();
 	void previousCamera();
@@ -100,6 +103,12 @@ protected:
 	void setBillboardSize(Ogre::Real size);
 	Ogre::Real mBillboardSize;
 	Ogre::Real mBillboardInterval;
+
+	void increaseFovSize();
+	void decreaseFovSize();
+	void setFovSize(Ogre::Real size);
+	Ogre::Real mFovSize;
+	Ogre::Real mFovInterval;
 
 	void toggleSparseDensePointCloud();
 	bool mIsSparsePointCloudVisible;

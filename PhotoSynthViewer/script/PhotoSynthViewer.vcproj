@@ -192,10 +192,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\PhotoSynthMesh.cpp"
-				>
-			</File>
-			<File
 				RelativePath="..\src\StatsFrameListener.cpp"
 				>
 			</File>
@@ -219,10 +215,6 @@
 			</File>
 			<File
 				RelativePath="..\include\OgreAppLogic.h"
-				>
-			</File>
-			<File
-				RelativePath="..\include\PhotoSynthMesh.h"
 				>
 			</File>
 			<File
