@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="PhotoSynthDownloadHelper"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="$(PhotoSynthDownloadHelper)\include"
+		PreprocessorDefinitions="_WIN32_WINNT=0x0501;NOMINMAX"
+	/>
+	<UserMacro
+		Name="PhotoSynthDownloadHelper"
+		Value="$(SolutionDir)\PhotoSynthDownloadHelper"
+	/>
+</VisualStudioPropertySheet>
