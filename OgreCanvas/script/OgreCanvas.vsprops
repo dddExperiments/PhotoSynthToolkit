@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="OgreCanvas"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="&quot;$(SKIA_SRC)\include&quot;;&quot;$(SKIA_SRC)\include\config&quot;;&quot;$(SKIA_SRC)\include\core&quot;;&quot;$(OgreCanvas)&quot;"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		AdditionalDependencies="skia.lib"
+		AdditionalLibraryDirectories="&quot;$(SKIA_SRC)\lib\$(PlatformName)\Release&quot;"
+	/>
+	<UserMacro
+		Name="SKIA_SRC"
+		Value="$(SolutionDir)\Dependencies\skia"
+	/>
+	<UserMacro
+		Name="OgreCanvas"
+		Value="$(SolutionDir)\OgreCanvas\include"
+	/>
+</VisualStudioPropertySheet>
