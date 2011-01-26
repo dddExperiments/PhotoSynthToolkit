@@ -33,6 +33,16 @@
 class OgreApp;
 class StatsFrameListener;
 
+struct CameraPlane
+{
+	CameraPlane(Ogre::Vector3 c, Ogre::Vector3 d, Ogre::Vector3 e, Ogre::Vector3 f);
+
+	Ogre::Vector3 c;
+	Ogre::Vector3 d;
+	Ogre::Vector3 e;
+	Ogre::Vector3 f;
+};
+
 class OgreAppLogic
 {
 public:
@@ -74,6 +84,7 @@ protected:
 	Ogre::Viewport *mViewport;
 	Ogre::Camera *mCamera;
 	Ogre::SceneNode* mCameraNode;
+	Ogre::SceneNode* mCameraNode2;
 	Ogre::SceneNode* mObjectNode;
 	Ogre::AnimationState* mAnimState;
 	Ogre::SceneNode* mAxesNode;
@@ -85,13 +96,18 @@ protected:
 	std::string mProjectPath;
 	std::string mDensePointCloudFilePath;
 		
-	std::vector<PhotoSynth::Vertex>	importPly(const std::string& filepath);
 	void adaptPlaneToCamera(const PhotoSynth::Camera& cam);
 	void createCameraPlane();
 	void createCameraMaterial();	
 	void parsePictureList(const std::string& picListFilePath);
 	std::vector<std::string> mPictureFilenames;
+	std::vector<CameraPlane> mCameraPlanes;
 	bool mThumbsAvailable;
+
+	void createAllCameraPlane();
+	void createCameraPlane(unsigned int index);
+	void onMouseClick(float x, float y);
+	void prepareTriangleIntersection();
 
 	void nextCamera();
 	void previousCamera();
@@ -109,6 +125,9 @@ protected:
 	void setFovSize(Ogre::Real size);
 	Ogre::Real mFovSize;
 	Ogre::Real mFovInterval;
+
+	void toggleCameraMode();
+	bool mIsCameraActivated;
 
 	void toggleSparseDensePointCloud();
 	bool mIsSparsePointCloudVisible;

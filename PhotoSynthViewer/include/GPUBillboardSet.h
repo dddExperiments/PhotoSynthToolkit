@@ -37,7 +37,7 @@ class GPUBillboardSet : public Ogre::SimpleRenderable
 		void setBillboards(const std::vector<PhotoSynth::Vertex>& vertices, bool useGeometryShader);
 
 	protected:
-		virtual void getWorldTransforms(Ogre::Matrix4* xform) const;
+		//virtual void getWorldTransforms(Ogre::Matrix4* xform) const;
 		virtual Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const;
 		virtual Ogre::Real getBoundingRadius() const;
 		virtual const Ogre::String& getMovableType() const;

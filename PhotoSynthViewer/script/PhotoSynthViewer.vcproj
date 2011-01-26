@@ -131,6 +131,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="OgreMain.lib OIS.lib"
+				AdditionalLibraryDirectories=""
 				GenerateDebugInformation="true"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -172,6 +173,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\DynamicLines.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\src\DynamicRenderable.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\GPUBillboardSet.cpp"
 				>
 			</File>
@@ -192,6 +201,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\PlyImporter.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\StatsFrameListener.cpp"
 				>
 			</File>
@@ -201,6 +214,14 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\include\DynamicLines.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\DynamicRenderable.h"
+				>
+			</File>
 			<File
 				RelativePath="..\include\GPUBillboardSet.h"
 				>
@@ -215,6 +236,10 @@
 			</File>
 			<File
 				RelativePath="..\include\OgreAppLogic.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\PlyImporter.h"
 				>
 			</File>
 			<File

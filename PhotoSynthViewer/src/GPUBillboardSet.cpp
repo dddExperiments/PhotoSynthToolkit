@@ -270,11 +270,6 @@ Ogre::AxisAlignedBox GPUBillboardSet::calculateBillboardsBoundingBox(const std::
 	return box;
 }
 
-void GPUBillboardSet::getWorldTransforms(Ogre::Matrix4* xform) const
-{
-	*xform = Ogre::Matrix4::IDENTITY;
-}
-
 Ogre::Real GPUBillboardSet::getSquaredViewDepth(const Ogre::Camera* cam) const
 {
 	Ogre::Vector3 min, max, mid, dist;

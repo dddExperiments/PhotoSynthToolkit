@@ -26,12 +26,23 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/convenience.hpp>
 #include <boost/algorithm/string.hpp> 
+#include <OgreTextureUnitState.h>
 
+#include "DynamicLines.h"
 #include "StatsFrameListener.h"
+#include "PlyImporter.h"
 
 using namespace Ogre;
 
 namespace bf = boost::filesystem;
+
+CameraPlane::CameraPlane(Ogre::Vector3 c, Ogre::Vector3 d, Ogre::Vector3 e, Ogre::Vector3 f)
+{
+	this->c = c;
+	this->d = d;
+	this->e = e;
+	this->f = f;
+}
 
 OgreAppLogic::OgreAppLogic() : mApplication(0)
 {
@@ -45,7 +56,7 @@ OgreAppLogic::OgreAppLogic() : mApplication(0)
 	mStatsFrameListener = 0;
 	mAnimState = 0;
 	mTimeUntilNextToggle = 0;
-	mDistanceFromCamera = 40000.0f;
+	mDistanceFromCamera = 499.0f;
 	mOISListener.mParent = this;
 	mDensePointCloud = NULL;
 	mDensePointCloudFilePath = "";
@@ -54,8 +65,9 @@ OgreAppLogic::OgreAppLogic() : mApplication(0)
 	mFovSize = 40.0f;
 	mFovInterval = 5.0f;
 	mIsSparsePointCloudVisible = true;
-	mIsCameraPlaneVisible = false;
-	mThumbsAvailable = false;
+	mIsCameraPlaneVisible      = false;
+	mIsCameraActivated         = true;
+	mThumbsAvailable           = false;
 }
 
 OgreAppLogic::~OgreAppLogic()
@@ -87,7 +99,7 @@ bool OgreAppLogic::preInit(const Ogre::StringVector &commandArgs)
 	mPhotoSynthParser->parseJson(jsonFilePath, guid);
 	mPhotoSynthParser->parseBinFiles(mProjectPath);
 
-	firstThumbFilePath << mProjectPath << "thumbs\\00000000.jpg";
+	 firstThumbFilePath << mProjectPath << "thumbs\\00000000.jpg";
 	
 	if (bf::exists(firstThumbFilePath.str()))
 		mThumbsAvailable = true;
@@ -98,17 +110,16 @@ bool OgreAppLogic::preInit(const Ogre::StringVector &commandArgs)
 // postAppInit
 bool OgreAppLogic::init(void)
 {
-	Ogre::ResourceGroupManager::getSingleton().addResourceLocation(mProjectPath, "FileSystem", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-	Ogre::ResourceGroupManager::getSingleton().addResourceLocation(PhotoSynth::Parser::createFilePath(mProjectPath, "distort"), "FileSystem", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 	if (mThumbsAvailable)
 			Ogre::ResourceGroupManager::getSingleton().addResourceLocation(PhotoSynth::Parser::createFilePath(mProjectPath, "thumbs"), "FileSystem", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
 	createSceneManager();
 	createViewport();
-	createCamera();
 	createScene();
-			
-	createCameraPlane();
+	createCamera();
+
+	createAllCameraPlane();
+	prepareTriangleIntersection();
 
 	mStatsFrameListener = new StatsFrameListener(mApplication->getRenderWindow());
 	mApplication->getOgreRoot()->addFrameListener(mStatsFrameListener);
@@ -155,7 +166,6 @@ void OgreAppLogic::postShutdown(void)
 void OgreAppLogic::createSceneManager(void)
 {
 	mSceneMgr = mApplication->getOgreRoot()->createSceneManager(ST_GENERIC, "SceneManager");
-	mSceneMgr->setSkyBox(true, "Examples/GridSkyBox");
 }
 
 void OgreAppLogic::createViewport(void)
@@ -166,19 +176,27 @@ void OgreAppLogic::createViewport(void)
 void OgreAppLogic::createCamera(void)
 {
 	mCamera = mSceneMgr->createCamera("camera");
-	mCamera->setNearClipDistance(0.5);
-	mCamera->setFarClipDistance(50000);
-	mCamera->setFOVy(Degree(20)); //FOVy camera Ogre = 20°
+	mCamera->setNearClipDistance(0.005f);
+	mCamera->setFarClipDistance(500);
+	mCamera->setFOVy(Degree(45)); //FOVy camera Ogre = 20°
 	mCamera->setAspectRatio((float) mViewport->getActualWidth() / (float) mViewport->getActualHeight());	
 	mViewport->setCamera(mCamera);
 	mViewport->setBackgroundColour(Ogre::ColourValue::White);
+
+	mCameraNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+	mCameraNode2 = mCameraNode->createChildSceneNode();
+	mCameraNode2->attachObject(mCamera);
 }
 
 void OgreAppLogic::createScene(void)
 {	
-	SceneNode* root = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-	SceneNode* pointCloud = root->createChildSceneNode();
+	Ogre::Matrix3 mx;
+	mx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(-90));
 
+	SceneNode* root = mSceneMgr->getRootSceneNode()->createChildSceneNode();	
+	SceneNode* pointCloud = root->createChildSceneNode();
+	pointCloud->setOrientation(mx);
+	
 	const RenderSystemCapabilities* caps = Ogre::Root::getSingletonPtr()->getRenderSystem()->getCapabilities();
 	bool useGeometryShader = caps->hasCapability(RSC_GEOMETRY_PROGRAM);
 
@@ -188,35 +206,14 @@ void OgreAppLogic::createScene(void)
 		vertices.insert(vertices.end(), coord.pointClouds[i].vertices.begin(), coord.pointClouds[i].vertices.end());
 
 	mSparsePointCloud = new GPUBillboardSet("sparsePointCloud", vertices, useGeometryShader);
-	pointCloud->attachObject(mSparsePointCloud);
+	pointCloud->attachObject(mSparsePointCloud);	
 	if (mDensePointCloudFilePath != "")
 	{		
-		mDensePointCloud = new GPUBillboardSet("densePointCloud", importPly(mDensePointCloudFilePath), useGeometryShader);
+		mDensePointCloud = new GPUBillboardSet("densePointCloud", PlyImporter::importPly(mDensePointCloudFilePath), useGeometryShader);
 		pointCloud->attachObject(mDensePointCloud);
 		mIsSparsePointCloudVisible = false;
 		mSparsePointCloud->setVisible(false);
 	}
-	SceneNode* objets = root->createChildSceneNode();
-	mCameraNode = objets->createChildSceneNode();
-	mCameraNode->attachObject(mCamera);
-}
-
-void OgreAppLogic::createCameraPlane()
-{
-	createCameraMaterial();
-
-	Plane p(Vector3::UNIT_Z, 0.0);
-	MeshManager::getSingleton().createPlane("VerticalPlane", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, p , 1, 1, 1, 1, true, 1, 1, 1, Vector3::UNIT_Y);
-	Entity* planeEntity = mSceneMgr->createEntity("CameraPlane", "VerticalPlane"); 
-	planeEntity->setMaterialName("CameraPlaneMaterial");
-	planeEntity->setRenderQueueGroup(RENDER_QUEUE_2);
-
-	// Create a node for the plane, inserts it in the scene
-	mCameraPlaneNode = mCameraNode->createChildSceneNode("planeNode");
-	mCameraPlaneNode->attachObject(planeEntity);
-
-	// Update position    
-	mCameraPlaneNode->setPosition(0, 0, -mDistanceFromCamera);
 }
 
 //--------------------------------- update --------------------------------
@@ -239,10 +236,10 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 	//////// moves  //////
 
 	// keyboard moves
-	if(keyboard->isKeyDown(OIS::KC_A))
+	if(keyboard->isKeyDown(OIS::KC_A) || keyboard->isKeyDown(OIS::KC_LEFT))
 		translateVector.x = -MOVE_SCALE;	// Move camera left
 
-	if(keyboard->isKeyDown(OIS::KC_D))
+	if(keyboard->isKeyDown(OIS::KC_D) || keyboard->isKeyDown(OIS::KC_RIGHT))
 		translateVector.x = +MOVE_SCALE;	// Move camera RIGHT
 
 	if(keyboard->isKeyDown(OIS::KC_UP) || keyboard->isKeyDown(OIS::KC_W) )
@@ -257,12 +254,11 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 	if(keyboard->isKeyDown(OIS::KC_PGDOWN))
 		translateVector.y = -MOVE_SCALE;	// Move camera down
 
-	if(keyboard->isKeyDown(OIS::KC_RIGHT))
+	/*if(keyboard->isKeyDown(OIS::KC_RIGHT))
 		rotX -= ROT_SCALE;					// Turn camera right
 
 	if(keyboard->isKeyDown(OIS::KC_LEFT))
-		rotX += ROT_SCALE;					// Turn camea left
-
+		rotX += ROT_SCALE;					// Turn camera left*/
 
 	rotX *= deltaTime;
 	rotY *= deltaTime;
@@ -277,13 +273,17 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 	}
 	else
 	{
-		rotX += Degree(-ms.X.rel * 0.005f * ROT_SCALE);		// Rotate camera horizontaly
-		rotY += Degree(-ms.Y.rel * 0.005f * ROT_SCALE);		// Rotate camera verticaly
+		rotX += Degree(-ms.X.rel * 0.0025f * ROT_SCALE);		// Rotate camera horizontaly
+		rotY += Degree(-ms.Y.rel * 0.0025f * ROT_SCALE);		// Rotate camera verticaly
 	}
 
-	mCameraNode->translate(mCameraNode->getOrientation()*translateVector);
-	mCameraNode->yaw(rotX);
-	mCameraNode->pitch(rotY);
+	mCameraNode->translate(mCameraNode->getOrientation()*mCameraNode2->getOrientation()*translateVector);
+	if (mIsCameraActivated)
+	{
+		mCameraNode->yaw(rotX);
+		mCameraNode2->pitch(rotY);
+		//mCameraNode->pitch(rotY);		
+	}
 
 	if (keyboard->isKeyDown(OIS::KC_ADD) && mTimeUntilNextToggle <= 0)
 	{
@@ -316,7 +316,7 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 		decreaseFovSize();
 		mTimeUntilNextToggle = 0.1f;
 	}
-	else if (keyboard->isKeyDown(OIS::KC_SPACE) && mTimeUntilNextToggle <= 0)
+	else if (keyboard->isKeyDown(OIS::KC_RETURN) && mTimeUntilNextToggle <= 0)
 	{
 		toggleSparseDensePointCloud();
 		mTimeUntilNextToggle = 0.2f;
@@ -324,6 +324,11 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 	else if (keyboard->isKeyDown(OIS::KC_C) && mTimeUntilNextToggle <= 0)
 	{
 		toggleCameraPlaneVisibility();
+		mTimeUntilNextToggle = 0.2f;
+	}
+	else if (keyboard->isKeyDown(OIS::KC_SPACE) && mTimeUntilNextToggle <= 0)
+	{
+		toggleCameraMode();
 		mTimeUntilNextToggle = 0.2f;
 	}
 
@@ -335,11 +340,26 @@ bool OgreAppLogic::processInputs(Ogre::Real deltaTime)
 
 bool OgreAppLogic::OISListener::mouseMoved(const OIS::MouseEvent &arg)
 {
+	if (arg.state.Z.abs > 0)
+	{
+		mParent->increaseFovSize();
+	}
+	else if (arg.state.Z.abs < 0)
+	{
+		mParent->decreaseFovSize();
+	}
 	return true;
 }
 
 bool OgreAppLogic::OISListener::mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id)
 {
+	
+	if (id == 0)
+	{
+		float x = arg.state.X.abs / (float) arg.state.width;
+		float y = arg.state.Y.abs / (float) arg.state.height;
+		mParent->onMouseClick(x, y);
+	}
 	return true;
 }
 
@@ -383,14 +403,30 @@ void OgreAppLogic::setCamera(unsigned int index)
 	Ogre::Matrix3 mx;
 	mx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(180));
 
+	Ogre::Matrix3 mx2;
+	mx2.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(-90));
+
 	Ogre::Matrix3 rot;
 	cam.orientation.ToRotationMatrix(rot);
-	rot = rot * mx;
+	rot = mx2 * rot * mx;
 
-	mCameraNode->setPosition(cam.position);
-	mCameraNode->setOrientation(rot);
+	//old method with roll
+	//mCameraNode->setOrientation(rot);
 
-	adaptPlaneToCamera(cam);
+	//new method without roll
+	Ogre::Radian yaw, pitch, roll;
+	rot.ToEulerAnglesYXZ(yaw, pitch, roll);
+
+	Ogre::Matrix3 yawMatrix, pitchMatrix, rollMatrix;	
+	yawMatrix.FromAxisAngle(Ogre::Vector3::UNIT_Y, yaw);
+	pitchMatrix.FromAxisAngle(Ogre::Vector3::UNIT_X, pitch);
+	//rollMatrix.FromAxisAngle(Ogre::Vector3::UNIT_Z, roll);
+
+	rot = yawMatrix * pitchMatrix;// * rollMatrix;
+
+	mCameraNode->setPosition(mx2*cam.position);
+	mCameraNode->setOrientation(yawMatrix);
+	mCameraNode2->setOrientation(pitchMatrix);
 }
 
 void OgreAppLogic::increaseBillboardSize()
@@ -441,9 +477,9 @@ void OgreAppLogic::setFovSize(Ogre::Real size)
 
 void OgreAppLogic::toggleSparseDensePointCloud()
 {
+	mIsSparsePointCloudVisible = !mIsSparsePointCloudVisible;
 	if (mDensePointCloud)
-	{
-		mIsSparsePointCloudVisible = !mIsSparsePointCloudVisible;
+	{		
 		if (mIsSparsePointCloudVisible)
 		{
 			mSparsePointCloud->setVisible(true);
@@ -455,214 +491,20 @@ void OgreAppLogic::toggleSparseDensePointCloud()
 			mDensePointCloud->setVisible(true);
 		}
 	}
+	else
+	{
+		mSparsePointCloud->setVisible(mIsSparsePointCloudVisible);
+	}
 }
 
 void OgreAppLogic::toggleCameraPlaneVisibility()
 {
 	mIsCameraPlaneVisible = !mIsCameraPlaneVisible;
-	mCameraPlaneNode->setVisible(mIsCameraPlaneVisible);
-	
-	if (mIsCameraPlaneVisible)
-		setCamera(mCameraIndex);
 }
 
-void OgreAppLogic::adaptPlaneToCamera(const PhotoSynth::Camera& cam)
+void OgreAppLogic::toggleCameraMode()
 {
-	//generate filename from camera info (use thumbnail if available instead of HD picture in distort)
-	std::string filename;
-	if (!mThumbsAvailable)
-		filename = mPictureFilenames[cam.index];
-	else
-	{
-		char buf[10];
-		sprintf(buf, "%08d", cam.index);
-
-		std::stringstream tmp;
-		tmp << buf << ".jpg";
-		filename = tmp.str();
-	}
-	
-	//load image
-	Ogre::TexturePtr tex = Ogre::TextureManager::getSingletonPtr()->load(filename, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-	float width          = (float) tex->getWidth();
-	float height         = (float) tex->getHeight();
-	float focalLength    = cam.focal*std::max(width, height);
-
-	//compute fov from image size and camera focal
-	Ogre::Radian fovy = 2.0f * Ogre::Math::ATan(height / (2.0f*focalLength));
-
-	//update plane dimension with texture dimension
-	float videoAspectRatio = width / height;
-	float planeHeight = 2 * mDistanceFromCamera * Ogre::Math::Tan(fovy*0.5);
-	float planeWidth  = planeHeight * videoAspectRatio;
-	mCameraPlaneNode->setScale(planeWidth, planeHeight, 1.0f);
-
-	//update plane with current texture
-	Ogre::MaterialPtr material = Ogre::MaterialManager::getSingletonPtr()->getByName("CameraPlaneMaterial");
-	Ogre::TextureUnitState* unit = material->getTechnique(0)->getPass(0)->getTextureUnitState(0);
-	unit->setTextureName(tex->getName());
-	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("distort1", (float) cam.distort1); //TODO: I think that it is the opposite...
-	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("distort2", (float) cam.distort2);
-	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("focal",    (float) focalLength);
-}
-
-void OgreAppLogic::createCameraMaterial()
-{
-	//Load Dummy Texture
-	Ogre::TexturePtr tex = Ogre::TextureManager::getSingletonPtr()->load("dummy.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-	
-	//Create Material
-	Ogre::MaterialPtr material = Ogre::MaterialManager::getSingleton().create("CameraPlaneMaterial", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-	material->getTechnique(0)->getPass(0)->setLightingEnabled(false);
-	material->getTechnique(0)->getPass(0)->setDepthWriteEnabled(false);
-	material->getTechnique(0)->getPass(0)->createTextureUnitState(tex->getName());
-	material->getTechnique(0)->getPass(0)->setVertexProgram("RadialUndistort_vp");
-	material->getTechnique(0)->getPass(0)->setFragmentProgram("RadialUndistort_fp");
-}
-
-std::vector<PhotoSynth::Vertex>	OgreAppLogic::importPly(const std::string& filepath)
-{
-	std::vector<PhotoSynth::Vertex> vertices;
-
-	Ogre::Vector3 noNormalValue(Ogre::Vector3::ZERO);
-	Ogre::ColourValue noColorValue(0.f, 0.f, 0.f, 0.f);
-
-	std::ifstream input;
-	input.open(filepath.c_str(), std::ios::binary);
-
-	if (!input.is_open())
-		return vertices;
-
-	std::string line;
-	unsigned int nbVertices = 0;
-	unsigned int nbTriangles = 0;
-	bool isBinaryFile = false;
-	bool hasNormals = false;
-	bool hasColors  = false;
-	bool hasAlpha   = false;
-
-	//parse header
-	do 
-	{
-		std::getline(input, line);
-
-		//property list uchar int vertex_indices
-
-		if (line == "format binary_little_endian 1.0")
-			isBinaryFile = true;
-		else if (line == "format ascii 1.0")
-			isBinaryFile = false;
-		else if (line == "property float nx")
-			hasNormals = true;
-		else if (line == "property uchar red")
-			hasColors = true;
-		else if (line == "property uchar alpha")
-			hasAlpha = true;
-		else if (line == "property uchar diffuse_red")
-			hasColors = true;
-		else if (line == "property uchar diffuse_alpha")
-			hasAlpha = true;
-		else
-		{
-			std::string keywordVertex("element vertex ");
-			unsigned int lengthVertex = keywordVertex.size();
-
-			std::string keywordFace("element face ");
-			unsigned int lengthFace = keywordFace.size();
-
-			if (line.size() > lengthVertex && line.substr(0, lengthVertex) == keywordVertex)
-			{
-				//std::string tmpVertex = line.substr(lengthVertex);
-				nbVertices = atoi(line.substr(lengthVertex).c_str());
-			}
-			else if (line.size() > lengthFace && line.substr(0, lengthFace) == keywordFace)
-			{
-				//std::string tmpFace = line.substr(lengthFace);
-				nbTriangles = atoi(line.substr(lengthFace).c_str());
-			}
-		}
-	} while (line != "end_header"); //missing eof check...
-
-	if (!isBinaryFile)
-	{
-		float* pos = new float[hasNormals?6:3];
-		int* color = new int[hasAlpha?4:3];
-
-		for (unsigned int i=0; i<nbVertices; ++i)
-		{
-			input >> pos[0]; //x
-			input >> pos[1]; //y
-			input >> pos[2]; //z
-			if (hasNormals)
-			{
-				input >> pos[3]; //nx
-				input >> pos[4]; //ny
-				input >> pos[5]; //nz
-			}
-			if (hasColors)
-			{
-				input >> color[0]; //r
-				input >> color[1]; //g
-				input >> color[2]; //b
-				if (hasAlpha)
-					input >> color[3]; //a
-			}
-
-			Ogre::Vector3 position((Ogre::Real)pos[0], (Ogre::Real)pos[1], (Ogre::Real)pos[2]);
-			Ogre::ColourValue colorValue = hasColors ? Ogre::ColourValue(color[0]/255.0f, color[1]/255.0f, color[2]/255.0f) : noColorValue;
-			Ogre::Vector3 normal = hasNormals ? Ogre::Vector3((Ogre::Real)pos[3], (Ogre::Real)pos[4], (Ogre::Real)pos[5]) : noNormalValue;
-
-			vertices.push_back(PhotoSynth::Vertex(position, colorValue));
-		}
-
-		unsigned char three;
-		int indexA;
-		int indexB;
-		int indexC;
-		for (unsigned int i=0; i<nbTriangles; ++i)
-		{
-			input >> three; //I know a triangle face is composed of 3 vertex ;-)
-			input >>indexA;
-			input >>indexB;
-			input >>indexC;
-		}
-		delete[] pos;
-		delete[] color;
-	}
-	else
-	{
-		float* pos = new float[hasNormals?6:3];
-		size_t sizePos = sizeof(float)*(hasNormals?6:3);
-
-		unsigned char* color = new unsigned char[hasAlpha?4:3];
-		size_t sizeColor = sizeof(unsigned char)*(hasAlpha?4:3);
-
-		for (unsigned int i=0; i<nbVertices; ++i)
-		{
-			input.read((char*)pos, sizePos);
-			if (hasColors)
-				input.read((char*)color, sizeColor);
-
-			Ogre::Vector3 position((Ogre::Real)pos[0], (Ogre::Real)pos[1], (Ogre::Real)pos[2]);
-			Ogre::ColourValue colorValue = hasColors ? Ogre::ColourValue(color[0]/255.0f, color[1]/255.0f, color[2]/255.0f) : noColorValue;
-			Ogre::Vector3 normal = hasNormals ? Ogre::Vector3((Ogre::Real)pos[3], (Ogre::Real)pos[4], (Ogre::Real)pos[5]) : noNormalValue;
-			vertices.push_back(PhotoSynth::Vertex(position, colorValue));
-		}
-
-		unsigned char three = 3;
-		int indexes[3];
-		for (unsigned int i=0; i<nbTriangles; ++i)
-		{
-			input.read((char*)&three, sizeof(three));
-			input.read((char*)indexes, sizeof(indexes));
-		}
-		delete[] pos;
-		delete[] color;
-	}
-
-	input.close();
-
-	return vertices;
+	mIsCameraActivated = !mIsCameraActivated;
 }
 
 void OgreAppLogic::parsePictureList(const std::string& picListFilePath)
@@ -683,4 +525,211 @@ void OgreAppLogic::parsePictureList(const std::string& picListFilePath)
 		}
 	}
 	input.close();
+}
+
+void OgreAppLogic::createAllCameraPlane()
+{
+	Ogre::Matrix3 mx;
+	mx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(-90));
+
+	Ogre::SceneNode* root = mSceneMgr->getRootSceneNode()->createChildSceneNode("cameraPlanes");
+	root->setOrientation(mx);
+
+	for (unsigned int i=0; i<mPhotoSynthParser->getNbCamera(0); ++i)
+		createCameraPlane(i);
+}
+
+void OgreAppLogic::createCameraPlane(unsigned int index)
+{
+	Ogre::SceneNode* root = mSceneMgr->getSceneNode("cameraPlanes");
+	std::stringstream nodeName;
+	nodeName << "cameraPlane" << index;
+	
+	// Create parent node
+	Ogre::SceneNode* currentNode = root->createChildSceneNode(nodeName.str());
+
+	// Get camera position and orientation
+	const PhotoSynth::Camera& cam = mPhotoSynthParser->getCamera(0, index);
+
+	Ogre::Matrix3 mx;
+	mx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(180));
+
+	Ogre::Matrix3 rot;
+	cam.orientation.ToRotationMatrix(rot);
+	rot = rot * mx;
+
+	// Update parent node with camera pose
+	currentNode->setPosition(cam.position);
+	currentNode->setOrientation(rot);
+
+	// Create material
+	std::string textureFilename;
+	{
+		char buf[10];
+		sprintf(buf, "%08d", cam.index);
+
+		std::stringstream tmp;
+		tmp << buf << ".jpg";
+		textureFilename = tmp.str();
+	}
+
+	//load image
+	Ogre::TexturePtr tex = Ogre::TextureManager::getSingletonPtr()->load(textureFilename, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+
+	// Adapt plane to camera info
+	float width       = (float) tex->getWidth();
+	float height      = (float) tex->getHeight();
+	float focalLength = cam.focal*std::max(width, height);
+
+	Ogre::MaterialPtr material = Ogre::MaterialManager::getSingleton().create(nodeName.str(), Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+	material->getTechnique(0)->getPass(0)->setLightingEnabled(false);
+	//material->getTechnique(0)->getPass(0)->setDepthWriteEnabled(true);
+	material->getTechnique(0)->getPass(0)->setDepthWriteEnabled(false);
+	material->getTechnique(0)->getPass(0)->setCullingMode(Ogre::CULL_NONE);
+	Ogre::TextureUnitState* texUnit = material->getTechnique(0)->getPass(0)->createTextureUnitState(tex->getName());	
+	texUnit->setTextureAddressingMode(Ogre::TextureUnitState::TAM_CLAMP);
+	material->getTechnique(0)->getPass(0)->setVertexProgram("RadialUndistort_vp");
+	material->getTechnique(0)->getPass(0)->setFragmentProgram("RadialUndistort_fp");
+	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("distort1", (float) cam.distort1);
+	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("distort2", (float) cam.distort2);
+	material->getTechnique(0)->getPass(0)->getFragmentProgramParameters()->setNamedConstant("focal",    (float) focalLength);
+
+	// Create plane
+	Plane p(Vector3::UNIT_Z, 0.0);
+	MeshManager::getSingleton().createPlane("VerticalPlane", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, p , 1, 1, 1, 1, true, 1, 1, 1, Vector3::UNIT_Y);
+	Entity* planeEntity = mSceneMgr->createEntity(nodeName.str(), "VerticalPlane"); 
+	planeEntity->setMaterialName(nodeName.str());
+	planeEntity->setRenderQueueGroup(RENDER_QUEUE_2);
+
+	// Create a node for the plane, inserts it in the scene
+	Ogre::SceneNode* planeNode = currentNode->createChildSceneNode();
+	planeNode->attachObject(planeEntity);
+
+	// Update position    
+	float distanceFromCamera = 0.2f;
+	planeNode->setPosition(0, 0, -distanceFromCamera);
+
+	//compute fov from image size and camera focal
+	Ogre::Radian fovy = 2.0f * Ogre::Math::ATan(height / (2.0f*focalLength));
+
+	//update plane dimension with texture dimension
+	float videoAspectRatio = width / height;
+	float planeHeight = 2 * distanceFromCamera * Ogre::Math::Tan(fovy*0.5);
+	float planeWidth  = planeHeight * videoAspectRatio;
+	planeNode->setScale(planeWidth, planeHeight, 1.0f);
+
+	DynamicLines* lines = new DynamicLines(Ogre::RenderOperation::OT_LINE_LIST);
+	lines->setMaterial("BlackDynamicLines");
+
+	lines->addPoint(Ogre::Vector3::ZERO);
+	lines->addPoint(Ogre::Vector3(-planeWidth/2, planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3::ZERO);
+	lines->addPoint(Ogre::Vector3(planeWidth/2, planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3::ZERO);
+	lines->addPoint(Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3::ZERO);
+	lines->addPoint(Ogre::Vector3(planeWidth/2, -planeHeight/2, -distanceFromCamera));
+
+	lines->addPoint(Ogre::Vector3(-planeWidth/2,  planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3( planeWidth/2,  planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3( planeWidth/2,  planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3( planeWidth/2, -planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3( planeWidth/2, -planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera));
+	lines->addPoint(Ogre::Vector3(-planeWidth/2,  planeHeight/2, -distanceFromCamera));
+
+	lines->update();
+	currentNode->attachObject(lines);
+}
+
+void OgreAppLogic::prepareTriangleIntersection()
+{
+	Ogre::Matrix3 mx;
+	mx.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(180));
+
+	float distanceFromCamera = 0.2f;
+
+	DynamicLines* lines = new DynamicLines(Ogre::RenderOperation::OT_LINE_LIST);
+	lines->setMaterial("RedDynamicLines");
+	for (unsigned int i=0; i<mPhotoSynthParser->getNbCamera(0); ++i)
+	{
+		const PhotoSynth::Camera& cam = mPhotoSynthParser->getCamera(0, i);
+		const PhotoSynth::Thumb& thumb = mPhotoSynthParser->getJsonInfo().thumbs[cam.index];
+		float width       = (float) thumb.width;
+		float height      = (float) thumb.height;
+		float focalLength = cam.focal*std::max(width, height);		
+		float videoAspectRatio = width / height;
+		
+		Ogre::Radian fovy = 2.0f * Ogre::Math::ATan(height / (2.0f*focalLength));
+		float planeHeight = 2 * distanceFromCamera * Ogre::Math::Tan(fovy*0.5);
+		float planeWidth  = planeHeight * videoAspectRatio;
+
+		Ogre::Matrix3 rot;
+		cam.orientation.ToRotationMatrix(rot);
+		rot = rot * mx;
+
+		Ogre::Matrix3 mx2;
+		mx2.FromAxisAngle(Ogre::Vector3::UNIT_X, Ogre::Degree(-90));
+
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2,  planeHeight/2, -distanceFromCamera)); //C
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2,  planeHeight/2, -distanceFromCamera)); //D
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2,  planeHeight/2, -distanceFromCamera)); //D
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2, -planeHeight/2, -distanceFromCamera)); //E
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2, -planeHeight/2, -distanceFromCamera)); //E
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera)); //F
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera)); //F
+		lines->addPoint(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2,  planeHeight/2, -distanceFromCamera)); //C
+
+		Ogre::Vector3 C(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2,  planeHeight/2, -distanceFromCamera));
+		Ogre::Vector3 D(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2,  planeHeight/2, -distanceFromCamera));
+		Ogre::Vector3 E(mx2*cam.position+mx2*rot*Ogre::Vector3( planeWidth/2, -planeHeight/2, -distanceFromCamera));
+		Ogre::Vector3 F(mx2*cam.position+mx2*rot*Ogre::Vector3(-planeWidth/2, -planeHeight/2, -distanceFromCamera));		
+
+		mCameraPlanes.push_back(CameraPlane(C, D, E, F));
+	}
+	lines->update();
+	//mSceneMgr->getRootSceneNode()->attachObject(lines);
+}
+
+void OgreAppLogic::onMouseClick(float x, float y)
+{
+	//Create camera ray using 2d mouse click coord
+	Ogre::Ray ray;
+	mCamera->getCameraToViewportRay(x, y, &ray);
+
+	//Compute ray/triangle with all pictures (2 triangles per picture)
+	unsigned int nbPlanes = mPhotoSynthParser->getNbCamera(0);
+	std::vector<std::pair<bool, float>> results(nbPlanes);
+	for (unsigned int i=0; i<mPhotoSynthParser->getNbCamera(0); ++i)
+	{
+		const CameraPlane& plane = mCameraPlanes[i];
+		std::pair<bool, float> resultCDE = Ogre::Math::intersects(ray, plane.c, plane.d, plane.e, true, true);
+		std::pair<bool, float> resultCEF = Ogre::Math::intersects(ray, plane.c, plane.e, plane.f, true, true);
+		if (resultCDE.first)
+			results[i] = resultCDE;
+		else if (resultCEF.first)
+			results[i] = resultCEF;
+		else
+			results[i].first = false;
+	}
+
+	//Find the closest picture intersecting with the camera ray
+	float distance = FLT_MAX;
+	int index      = -1;
+	for (unsigned int i=0; i<results.size(); ++i)
+	{
+		if (results[i].first && results[i].second < distance)
+		{
+			distance = results[i].second;
+			index = i;
+		}
+	}
+
+	//If a picture is found apply the camera pose
+	if (index != -1)
+	{
+		setCamera(index);
+		mCameraIndex = index;
+	}
 }
