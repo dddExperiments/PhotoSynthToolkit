@@ -23,9 +23,8 @@
 #pragma once
 
 #include "PhotoSynthParser.h"
+#include <PhotoSynthDownloadHelper.h>
 #include <boost/asio.hpp>
-
-typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
 
 namespace PhotoSynth
 {
@@ -34,9 +33,7 @@ namespace PhotoSynth
 	class Downloader
 	{
 		public:
-			Downloader(boost::asio::io_service* service);			
-			~Downloader();
-
+			Downloader(boost::asio::io_service* service);
 			bool download(const std::string& guid, const std::string& outputFolder, bool downloadThumb);
 
 		protected:
@@ -49,20 +46,6 @@ namespace PhotoSynth
 			void savePly(const std::string& outputFolder, Parser* parser);
 			void saveCamerasParameters(const std::string& outputFolder, Parser* parser);
 
-			//socket helper
-			SocketPtr connect(const std::string& url);
-			std::string extractHost(const std::string& url);
-			std::string removeHost(const std::string& url, const std::string& host);
-			std::string createGETHeader(const std::string& get, const std::string& host = "");
-			unsigned int getContentLength(std::istream& header);
-
-			//file helper			
-			bool saveAsciiFile(const std::string& filepath, const std::string& content);
-			bool saveBinFile(const std::string& filepath, std::istream& input, unsigned int length);						
-
 			boost::asio::io_service* mService;
-
-			unsigned int   mTransmissionBufferSize;
-			unsigned char* mTransmissionBuffer;
 	};
 }

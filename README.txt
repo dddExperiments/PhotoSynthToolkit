@@ -18,14 +18,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-PhotoSynth toolkit:
--------------------
+PhotoSynth toolkit [http://www.visual-experiments.com/demos/photosynthtoolkit/]:
+--------------------------------------------------------------------------------
 
-- PhotoSynthDownloader: download PhotoSynth point cloud and cameras parameters
 - PhotoSynth2PMVS: enable to run PMVS2 with a downloaded PhotoSynth point cloud
+- PhotoSynthDownloader: download PhotoSynth point cloud and cameras parameters
+- PhotoSynthTileDownloader: download tiles of HD picture and compose them using Ogre::Canvas
 - PhotoSynthViewer: Ogre3D PhotoSynth viewer
+- PMVSVisibilityComputer: tool to generate vis.dat from a previous PMVS2 call
 
-The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit4.zip
+The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit5.zip
 Created by Henri Astre http://www.visual-experiments.com released under MIT license.
 
 Dependencies used:
@@ -37,3 +39,4 @@ JSON Spirit: http://www.codeproject.com/KB/recipes/JSON_Spirit.aspx created by J
 Ogre3D: http://www.ogre3d.org/ 
 Boost: http://www.boost.org/
 threadpool: http://threadpool.sourceforge.net/ created by Philipp Henkel
+skia: http://code.google.com/p/skia/

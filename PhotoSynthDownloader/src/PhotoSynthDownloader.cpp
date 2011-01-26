@@ -34,19 +34,12 @@ using boost::asio::ip::tcp;
 
 Downloader::Downloader(boost::asio::io_service* service)
 {
-	mService                = service;
-	mTransmissionBufferSize = 16384;
-	mTransmissionBuffer     = new unsigned char[mTransmissionBufferSize];
-}
-
-Downloader::~Downloader()
-{
-	delete[] mTransmissionBuffer;
+	mService = service;
 }
 
 bool Downloader::download(const std::string& guid, const std::string& outputFolder, bool downloadThumb)
 {	
-	saveAsciiFile(Parser::createFilePath(outputFolder, Parser::guidFilename), guid);
+	DownloadHelper::saveAsciiFile(Parser::createFilePath(outputFolder, Parser::guidFilename), guid);
 
 	Parser parser;
 
@@ -123,7 +116,7 @@ bool Downloader::downloadSoap(const std::string& soapFilePath, const std::string
 {
 	try
 	{
-		SocketPtr sock = connect("www.photosynth.net");
+		SocketPtr sock = DownloadHelper::connect(mService, "www.photosynth.net");
 
 		//prepare header + content
 		std::stringstream content;
@@ -169,7 +162,7 @@ bool Downloader::downloadSoap(const std::string& soapFilePath, const std::string
 			xml << line << std::endl;
 
 		//save soap response
-		if (!saveAsciiFile(soapFilePath, xml.str()))
+		if (!DownloadHelper::saveAsciiFile(soapFilePath, xml.str()))
 			return false;		
 	}
 	catch (std::exception& e)
@@ -184,10 +177,10 @@ bool Downloader::downloadJson(const std::string& jsonFilePath, const std::string
 {
 	try
 	{
-		std::string host = extractHost(jsonUrl);
-		SocketPtr sock = connect(host);
+		std::string host = DownloadHelper::extractHost(jsonUrl);
+		SocketPtr sock = DownloadHelper::connect(mService, host);
 
-		std::string header = createGETHeader(removeHost(jsonUrl, host), host);
+		std::string header = DownloadHelper::createGETHeader(DownloadHelper::removeHost(jsonUrl, host), host);
 
 		//send GET request
 		boost::system::error_code error;
@@ -210,7 +203,7 @@ bool Downloader::downloadJson(const std::string& jsonFilePath, const std::string
 			jsonText << line << std::endl;
 
 		//save json
-		if (!saveAsciiFile(jsonFilePath, jsonText.str()))
+		if (!DownloadHelper::saveAsciiFile(jsonFilePath, jsonText.str()))
 			return false;
 	}
 	catch (std::exception& e)
@@ -223,9 +216,9 @@ bool Downloader::downloadJson(const std::string& jsonFilePath, const std::string
 
 void Downloader::downloadAllBinFiles(const std::string& outputFolder, Parser* parser)
 {
-	std::string host = extractHost(parser->getSoapInfo().collectionRoot);
+	std::string host = DownloadHelper::extractHost(parser->getSoapInfo().collectionRoot);
 
-	SocketPtr sock = connect(host);
+	SocketPtr sock = DownloadHelper::connect(mService, host);
 	boost::asio::socket_base::keep_alive keepAlive(true);
 	sock->set_option(keepAlive);
 
@@ -246,7 +239,7 @@ void Downloader::downloadAllBinFiles(const std::string& outputFolder, Parser* pa
 				filenames.push_back(filename.str());
 				std::stringstream url;
 				url << parser->getSoapInfo().collectionRoot << filename.str().substr(4);
-				headers << createGETHeader(removeHost(url.str(), host), host);
+				headers << DownloadHelper::createGETHeader(DownloadHelper::removeHost(url.str(), host), host);
 			}
 		}
 	}
@@ -265,8 +258,8 @@ void Downloader::downloadAllBinFiles(const std::string& outputFolder, Parser* pa
 		std::istream response_stream(&response);
 		for (unsigned int i=0; i<filenames.size(); ++i)
 		{
-			int length = getContentLength(response_stream);
-			saveBinFile(Parser::createFilePath(outputFolder, filenames[i]), response_stream, length);
+			int length = DownloadHelper::getContentLength(response_stream);
+			DownloadHelper::saveBinFile(Parser::createFilePath(outputFolder, filenames[i]), response_stream, length);
 		}
 	}
 
@@ -294,10 +287,10 @@ void Downloader::downloadThumb(const std::string& outputFolder, const JsonInfo& 
 	std::string filepath = Parser::createFilePath(outputFolder, filename.str());
 	if (!bf::exists(filepath))
 	{
-		std::string host = extractHost(info.thumbs[index].url);
-		SocketPtr sock = connect(host);
+		std::string host = DownloadHelper::extractHost(info.thumbs[index].url);
+		SocketPtr sock = DownloadHelper::connect(mService, host);
 
-		std::string header = createGETHeader(removeHost(info.thumbs[index].url, host), host);
+		std::string header = DownloadHelper::createGETHeader(DownloadHelper::removeHost(info.thumbs[index].url, host), host);
 
 		//send GET request
 		boost::system::error_code error;
@@ -308,9 +301,9 @@ void Downloader::downloadThumb(const std::string& outputFolder, const JsonInfo& 
 		while (boost::asio::read(*sock, response, boost::asio::transfer_at_least(1), error));
 
 		std::istream response_stream(&response);
-		int length = getContentLength(response_stream);
+		int length = DownloadHelper::getContentLength(response_stream);
 
-		saveBinFile(filepath, response_stream, length);			
+		DownloadHelper::saveBinFile(filepath, response_stream, length);			
 
 		sock->close();
 	}
@@ -405,103 +398,6 @@ void Downloader::savePly(const std::string& outputFolder, Parser* parser)
 			output.close();
 		}
 	}
-}
-
-//url should be like http://toto.net/index.html -> return toto.net
-std::string Downloader::extractHost(const std::string& url)
-{
-	Ogre::StringVector tmp = Ogre::StringUtil::split(url, "/");
-	if (tmp.size() < 2)
-		return "";
-	else
-		return tmp[1];
-}
-
-//url should be like http://toto.net/index.html -> return /index.html (host is optional and sould be like toto.net)
-std::string Downloader::removeHost(const std::string& url, const std::string& host)
-{
-	std::string domain = (host == "" ? extractHost(url) : host);
-
-	return url.substr(domain.size()+std::string("http://").size());
-}
-
-SocketPtr Downloader::connect(const std::string& url)
-{
-	tcp::resolver resolver(*(mService));
-	tcp::resolver::query query(url, "http");
-
-	tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-	tcp::resolver::iterator end;
-
-	SocketPtr socket = SocketPtr(new tcp::socket(*(mService)));
-	boost::system::error_code error = boost::asio::error::host_not_found;
-	while (error && endpoint_iterator != end)
-	{
-		socket->close();
-		socket->connect(*endpoint_iterator++, error);
-	}
-	if (error)
-		throw boost::system::system_error(error);
-
-	return socket;
-}
-
-std::string Downloader::createGETHeader(const std::string& get, const std::string& host)
-{
-	std::stringstream header;
-	header << "GET " << get << " HTTP/1.1" <<std::endl;
-	header << "Host: " << host <<std::endl;
-	header << "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"<<std::endl;
-	header << "Accept-Language: fr,fr-fr;q=0.8,en-us;q=0.5,en;q=0.3"<<std::endl;
-	header << "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7"<<std::endl;
-	header << "Connection: keep-alive"<<std::endl;
-	header << ""<<std::endl;
-
-	return header.str();
-}
-
-unsigned int Downloader::getContentLength(std::istream& header)
-{
-	//example: "Content-Length: 3789" -> 3789
-
-	int length = 0;
-	std::string contentLength = "Content-Length: ";
-	std::string line;
-	while (std::getline(header, line) && line != "\r")
-	{
-		std::string name = line.substr(0, contentLength.size());
-		if (name == contentLength)
-			length = atoi(Ogre::StringUtil::split(line, contentLength)[0].c_str());
-	}
-	return length;
-}
-
-bool Downloader::saveAsciiFile(const std::string& filepath, const std::string& content)
-{
-	std::ofstream output;
-	output.open(filepath.c_str());
-
-	bool opened = output.is_open();
-
-	if (opened)
-		output << content;
-	output.close();
-
-	return opened;
-}
-
-bool Downloader::saveBinFile(const std::string& filepath, std::istream& input, unsigned int length)
-{
-	char* buffer = new char[length];
-	std::ofstream output;
-	output.open(filepath.c_str(), std::ios::binary);
-	input.read(buffer, length);
-	output.write(buffer, length);
-	output.close();
-
-	delete[] buffer;
-
-	return true;
 }
 
 void Downloader::saveCamerasParameters(const std::string& outputFolder, Parser* parser)

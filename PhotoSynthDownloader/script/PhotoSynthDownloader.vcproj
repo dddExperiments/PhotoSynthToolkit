@@ -20,7 +20,7 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="..\..\Ogre.vsprops;..\..\Dependencies\tinyxml\script\tinyxml.vsprops;..\..\PhotoSynthParser\script\PhotoSynthParser.vsprops"
+			InheritedPropertySheets="..\..\Ogre.vsprops;..\..\Dependencies\tinyxml\script\tinyxml.vsprops;..\..\PhotoSynthParser\script\PhotoSynthParser.vsprops;..\..\Dependencies\threadpool\script\ThreadPool.vsprops;..\..\PhotoSynthDownloadHelper\script\PhotoSynthDownloadHelper.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -91,7 +91,7 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			InheritedPropertySheets="..\..\Ogre.vsprops;..\..\Dependencies\tinyxml\script\tinyxml.vsprops;..\..\PhotoSynthParser\script\PhotoSynthParser.vsprops"
+			InheritedPropertySheets="..\..\Ogre.vsprops;..\..\Dependencies\tinyxml\script\tinyxml.vsprops;..\..\PhotoSynthParser\script\PhotoSynthParser.vsprops;..\..\Dependencies\threadpool\script\ThreadPool.vsprops;..\..\PhotoSynthDownloadHelper\script\PhotoSynthDownloadHelper.vsprops"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
 			>

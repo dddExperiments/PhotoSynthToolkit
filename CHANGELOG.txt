@@ -1,4 +1,9 @@
+v5:
 - PhotoSynthParser: add lowercase for guid parsing in case the user provide uppercase guid
-- PhotoSynthDownloader: add bundler like ply output with colored cameras position + add multithreaded thumbs downloader
-- PhotoSynthViewer : this is now working !
-- remove PhotoSynthMesh (h/cpp)
+- PhotoSynthDownloader: Thumbs downloading should be faster (8x)
+- PhotoSynthTileDownloader: was added to the project
+- PhotoSynthViewer: Ogre3D viewer working with very basic feature
+- PMVSVisibilityComputer: was added to generate vis.dat from previous PMVS call (analysing .patch file in models folder)
+
+v4:
+older version were on my code.google
