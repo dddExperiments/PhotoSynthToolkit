@@ -108,6 +108,7 @@ bool Downloader::download(const std::string& guid, const std::string& outputFold
 		downloadAllThumbFiles(outputFolder, parser.getJsonInfo());
 
 	savePly(outputFolder, &parser);
+	save3DSMaxScript(outputFolder, &parser);
 
 	return true;
 }
@@ -457,6 +458,155 @@ void Downloader::saveCamerasParameters(const std::string& outputFolder, Parser* 
 					output << "0 0 0" << std::endl;
 				}				
 			}
+		}
+		output.close();
+	}
+}
+
+//This function generate a 3DS Max script (ported from modified version of SynthExport created by Josh Harle in C#)
+//http://blog.neonascent.net/archives/cameraexport-photosynth-to-camera-projection-in-3ds-max/
+void Downloader::save3DSMaxScript(const std::string& outputFolder, Parser* parser)
+{
+	if (parser->getNbCoordSystem() > 0)
+	{
+		std::stringstream filepath;
+		filepath << outputFolder << "/bin/cameras.ms";
+
+		std::ofstream output(filepath.str().c_str());
+		if (output.is_open())
+		{
+			output << "/* 3DS Max Camera and Projection Map Exporter by Josh Harle (http://tacticalspace.org) */" << std::endl;
+			output << "/*  Enable initial camera states below; 1 = enabled, 0 = disabled */" << std::endl;
+			output << std::endl;
+			output << "if queryBox \"Before starting, remember to added the folder containing your images (e.g. /pmvs/visualize) to 3DS Max path list using Customize -> Configure-User-Paths -> External Files -> Add.  Have you done this?\" beep:true then (" << std::endl;
+			output << std::endl;
+			output << "Default_Mix_Type = 2 /*  0 = Additive, 1 = Subtractive, 2 = Mix */" << std::endl;
+			output << "Default_Mix_Amount = 100" << std::endl;
+			output << "Default_Angle_Threshold = 90" << std::endl;
+
+			for (unsigned int i=0; i<parser->getNbCamera(0); ++i)
+				output << "Enable_Camera_" << i  << " = 1" << std::endl;
+
+			output << std::endl;
+			output << "progressstart \"Adding Cameras and Camera Maps\"" << std::endl;
+			output << std::endl;
+			output << "startCamera = matrix3 [1,0,0] [0,-1,0] [0,0,-1] [0,0,0]" << std::endl;
+			output << "sideCamera = matrix3 [0,1,0] [1,0,0] [0,0,-1] [0,0,0]" << std::endl;
+			output << "t = matrix3 [1,0,0] [0,1,0] [0,0,1] [0,0,0]" << std::endl;
+			output << "R = matrix3 [1,0,0] [0,1,0] [0,0,1] [0,0,0]" << std::endl;
+			output << std::endl;
+
+			int materialNum = 1;
+			int compositeNum = 1;
+			std::stringstream compositeMaterial;
+			compositeMaterial << "";
+
+			for (unsigned int i=0; i<parser->getNbCamera(0); ++i)
+			{
+				std::stringstream paddedIndex; //contain %8d of i (42 -> 00000042)
+				paddedIndex.width(8);
+				paddedIndex.fill('0');
+				paddedIndex << i;
+
+				output << "progressupdate (100.0*" << i << "/" << parser->getNbCamera(0) << ")" << std::endl;
+
+				output << "Camera" << i << " = freecamera name: \"" << i << "\"" << std::endl;
+				
+				unsigned int precision = output.precision();
+				output.precision(10);
+				output << "Camera" << i << ".fov = cameraFOV.MMtoFOV " << (35 * parser->getCamera(0, i).focal) << std::endl;
+
+				const PhotoSynth::Camera& cam = parser->getCamera(0, i);				
+				Ogre::Matrix3 rot;
+				Ogre::Vector3 pos = cam.position;
+				cam.orientation.ToRotationMatrix(rot);
+				
+				output << "R.row1 = [" << rot[0][0] << ", " << rot[1][0] << ", " << rot[2][0] << "]" << std::endl;
+				output << "R.row2 = [" << rot[0][1] << ", " << rot[1][1] << ", " << rot[2][1] << "]" << std::endl;
+				output << "R.row3 = [" << rot[0][2] << ", " << rot[1][2] << ", " << rot[2][2] << "]" << std::endl;
+				output << "t.row4 = [" << pos.x     << ", " << pos.y     << ", " << pos.z     << "]" << std::endl;
+				output.precision(precision);
+				
+				std::string cameratype = "startCamera";
+				std::string wAngle = "0";
+				if (cam.ratio < 1)
+				{
+					cameratype = "sideCamera";
+					wAngle = "-90";
+				}
+				output << "Camera" << i << ".transform = " << cameratype << " * R * t" << std::endl;
+				output << std::endl;
+
+				// create camera mapping for this camera
+
+				output << "/* Create Diffuse */" << std::endl;
+				output << "bm" << i << " = BitmapTexture name: \"bitmap_" << paddedIndex.str() << "\" filename: \"" << paddedIndex.str() << ".jpg\"" << std::endl;
+				output << "bm" << i << ".coords.V_Tile = false" << std::endl;
+				output << "bm" << i << ".coords.U_Tile = false" << std::endl;
+				output << "bm" << i << ".coords.W_Angle = " << wAngle << std::endl;
+
+				output << "/* create camera  map per pixel */" << std::endl;
+				output << "cm_dif_" << i << " = Camera_Map_Per_Pixel name: \"cameramap_" << paddedIndex.str() << "\" camera: Camera" << i << " backFace: true angleThreshold: Default_Angle_Threshold texture: bm" << i << std::endl;
+
+				output << "/* Create Opacity */" << std::endl;
+				output << "bmo" << i << " = BitmapTexture name: \"bitmap_" << paddedIndex.str() << "\" filename: \"" << paddedIndex.str() << ".jpg\"" << std::endl;
+				output << "bmo" << i << ".coords.V_Tile = false" << std::endl;
+				output << "bmo" << i << ".coords.U_Tile = false" << std::endl;
+				output << "bmo" << i << ".coords.W_Angle = " << wAngle << std::endl;
+				output << "bmo" << i << ".output.Output_Amount = 100" << std::endl;
+				output << "cmo_" << i << " = Camera_Map_Per_Pixel name: \"cameramap_o_" << paddedIndex.str() << "\" camera: Camera" << i << " backFace: true angleThreshold: 90 texture: bmo" << i << std::endl;
+
+				output << std::endl;
+
+				output << "/* create standard map */" << std::endl;
+				output << "m" << i << " = standardMaterial name: \"material_" << paddedIndex.str() << "\" diffuseMap: cm_dif_" << i << " opacityMap: cmo_" << i << " showInViewport: true" << std::endl;
+
+				// create or add to composite material
+				if (materialNum == 10) 
+				{
+					materialNum = 1;
+					compositeNum++;
+				}
+				
+				compositeMaterial.str("");
+				compositeMaterial << "cpm_" << compositeNum;
+				std::stringstream lastCompositeMaterial;
+				lastCompositeMaterial << "cpm_" << (compositeNum - 1);
+
+				// create new composite material
+				if (materialNum == 1) 
+				{
+					output << compositeMaterial.str() << " = compositeMaterial()" << std::endl;
+					
+					if (compositeNum == 1) // if first one 
+					{
+						output << compositeMaterial.str() << ".materialList[1] = standardMaterial name: \"Base Composite Material\" opacity: 100" << std::endl;
+					}
+					else
+					{
+						output << compositeMaterial.str() + ".materialList[1] = " + lastCompositeMaterial.str() << std::endl;
+					}
+
+				}
+
+				output << compositeMaterial.str() << ".materialList[" << (materialNum+1) << "] = m" << i << std::endl;
+				output << compositeMaterial.str() << ".amount[" << (materialNum) << "] = Default_Mix_Amount" << std::endl;
+				output << compositeMaterial.str() << ".mixType[" << (materialNum) << "] = Default_Mix_Type" << std::endl;
+
+				output << "if Enable_Camera_" << i << " != 1 do ( " << compositeMaterial.str()  << ".mapEnables[" << (materialNum+1) << "] = false )" << std::endl;
+				output << std::endl;
+				materialNum++;
+			}
+
+			output << "for node in rootNode.children do(" << std::endl;
+			output << "node.material = " + compositeMaterial.str() << std::endl;
+			output << ")" << std::endl;
+
+			output << std::endl;
+			output << "progressend()" << std::endl;
+			output << std::endl;
+			output << "messageBox \"Cameras and materials added!  Make sure you have rotated your model 90° to fit the camera coordinate system.  You can change the mix of materials to be projected by opening the material editor (press M), Material -> Get All Scene Materials, and then changing the setting in each combination material.\"" << std::endl;
+			output << ")" << std::endl;
 		}
 		output.close();
 	}
