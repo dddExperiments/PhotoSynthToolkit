@@ -109,6 +109,7 @@ bool Downloader::download(const std::string& guid, const std::string& outputFold
 
 	savePly(outputFolder, &parser);
 	save3DSMaxScript(outputFolder, &parser);
+	saveXSIScript(outputFolder, &parser);
 
 	return true;
 }
@@ -470,7 +471,7 @@ void Downloader::save3DSMaxScript(const std::string& outputFolder, Parser* parse
 	if (parser->getNbCoordSystem() > 0)
 	{
 		std::stringstream filepath;
-		filepath << outputFolder << "/bin/cameras.ms";
+		filepath << outputFolder << "/bin/cameras_max.ms";
 
 		std::ofstream output(filepath.str().c_str());
 		if (output.is_open())
@@ -607,6 +608,256 @@ void Downloader::save3DSMaxScript(const std::string& outputFolder, Parser* parse
 			output << std::endl;
 			output << "messageBox \"Cameras and materials added!  Make sure you have rotated your model 90° to fit the camera coordinate system.  You can change the mix of materials to be projected by opening the material editor (press M), Material -> Get All Scene Materials, and then changing the setting in each combination material.\"" << std::endl;
 			output << ")" << std::endl;
+		}
+		output.close();
+	}
+}
+void Downloader::saveXSIScript(const std::string& outputFolder, Parser* parser)
+{
+	if (parser->getNbCoordSystem() > 0)
+	{
+		std::stringstream filepath;
+		filepath << outputFolder << "/bin/cameras_xsi.vbs";
+
+		std::ofstream output(filepath.str().c_str());
+		if (output.is_open())
+		{			
+			output << "projectPath = \"" << outputFolder << "\"" << std::endl;
+			output << "" << std::endl;
+			output << "sub createMultipleCameraMapping()	" << std::endl;
+			output << "	alternativeRender = true 'set to false to try another rendering technique" << std::endl;
+			output << "	" << std::endl;
+			output << "	dim myProjection, myObj, myMat, myShaderConstant, myCamera, myCurrentClip" << std::endl;
+			output << "	dim rotX, rotY, rotZ" << std::endl;
+			output << "	pathTextureFolder = projectPath & \"\\pmvs\\visualize\\\"" << std::endl;
+			output << "" << std::endl;
+			output << "	dim cameraName, imageName" << std::endl;
+			output << "	dim posX, posY, posZ" << std::endl;
+			output << "	dim quatW, quatX, quatY, quatZ" << std::endl;
+			output << "	dim ratio, focal, focalXSI" << std::endl;
+			output << "" << std::endl;
+			output << "	Set myCollection = CreateObject(\"XSI.Collection\")" << std::endl;
+			output << "	Set myCameraCollection = CreateObject(\"XSI.Collection\")" << std::endl;
+			output << "	myCameraCollection.Unique = true" << std::endl;
+			output << "		" << std::endl;
+			output << "	SetUserPref siAutoInspect, false" << std::endl;
+			output << "	" << std::endl;
+			output << "	set myObj = Application.Selection(0)" << std::endl;
+			output << "" << std::endl;
+			output << "	if TypeName(myObj) = \"Nothing\" then" << std::endl;
+			output << "		logMessage \"You must select one object.\", siWarning" << std::endl;
+			output << "	elseIf myObj.Type <> \"polymsh\" then" << std::endl;
+			output << "		logMessage \"Your object must be a polymsh.\", siWarning" << std::endl;
+			output << "	else" << std::endl;
+			output << "		myCollection.Add myObj" << std::endl;
+			output << "		" << std::endl;
+			output << "		ApplyShader \"$XSI_DSPRESETS\\\\Shaders\\\\Material\\\\Constant.Preset\", myObj, null, \"\", siLetLocalMaterialsOverlap" << std::endl;
+			output << "" << std::endl;
+			output << "		set myMat = myObj.Material" << std::endl;
+			output << "		set myShaderConstant = myMat.Surface.Source.Parent" << std::endl;
+			output << "		" << std::endl;
+			output << "		cameraCreatedNumber = -1" << std::endl;
+			output << "		cpt = 0" << std::endl;
+			output << "		cptImage = 0" << std::endl;
+			output << "		" << std::endl;
+			output << "		cameraNumber = " << parser->getNbCamera(0) << std::endl;
+			output << "		redim arrayImage(cameraNumber)" << std::endl;
+			output << "		" << std::endl;
+
+			for (unsigned int i=0; i<parser->getNbCamera(0); ++i)
+			{				
+				const PhotoSynth::Camera& cam = parser->getCamera(0, i);
+				const Ogre::Vector3& p = cam.position;
+				const Ogre::Quaternion& q = cam.orientation;
+				float focal = (float) Ogre::Radian(2.0f * Ogre::Math::ATan(1.0f/(2.0f*cam.focal))).valueDegrees();
+				output << "		createCamera myCameraCollection, \"camera_" << i << "\", " << p.x << ", " << p.y << ", " << p.z << ", " << q.w << ", " << q.x << ", " << q.y << ", " << q.z << ", " << cam.ratio << ", " << cam.focal << ", " << focal << std::endl;
+			}
+
+			for (unsigned int i=0; i<parser->getNbCamera(0); ++i)
+			{				
+				std::stringstream paddedIndex; //contain %8d of i (42 -> 00000042)
+				paddedIndex.width(8);
+				paddedIndex.fill('0');
+				paddedIndex << i;
+				output << "		arrayImage(" << i << ") = \"" << paddedIndex.str() << ".jpg\"" << std::endl;
+			}
+
+			output << "		" << std::endl;
+			output << "		' compute center of the object" << std::endl;
+			output << "		Dim xmin, ymin, zmin, xmax, ymax, zmax" << std::endl;
+			output << "		GetBBox tafSelection, FALSE, xmin, ymin, zmin, xmax, ymax, zmax" << std::endl;
+			output << "" << std::endl;
+			output << "		xmoy = (xmin + xmax) / 2" << std::endl;
+			output << "		ymoy = (ymin + ymax) / 2" << std::endl;
+			output << "		zmoy = (zmin + zmax) / 2" << std::endl;
+			output << "		" << std::endl;
+			output << "		set positionCentreObjet = XSIMath.CreateVector3(xmoy, ymoy, zmoy)" << std::endl;
+			output << "		" << std::endl;
+			output << "		' sort cameras according to their distance with the object (center of the bbox of the object)" << std::endl;
+			output << "		redim arrSortOut(myCameraCollection.Count - 1,1)" << std::endl;
+			output << "		" << std::endl;
+			output << "		for i = 0 to myCameraCollection.Count - 1" << std::endl;
+			output << "			arrSortOut(i,0) = i" << std::endl;
+			output << "			" << std::endl;
+			output << "			set myCurrentCameraKine = myCameraCollection(i).Kinematics" << std::endl;
+			output << "		" << std::endl;
+			output << "			set positionCamera = XSIMath.CreateVector3(myCurrentCameraKine.global.parameters(\"posx\").value, myCurrentCameraKine.global.parameters(\"posy\").value, myCurrentCameraKine.global.parameters(\"posz\").value)" << std::endl;
+			output << "		" << std::endl;
+			output << "			set distanceCourante = XSIMath.CreateVector3" << std::endl;
+			output << "			distanceCourante.Sub positionCamera, positionCentreObjet" << std::endl;
+			output << "					" << std::endl;
+			output << "			arrSortOut(i,1) = distanceCourante.length" << std::endl;
+			output << "		next" << std::endl;
+			output << "		" << std::endl;
+			output << "		MonBubbleSort arrSortOut" << std::endl;
+			output << "		for each item in arrSortOut" << std::endl;
+			output << "			Application.LogMessage item " << std::endl;
+			output << "		next" << std::endl;
+			output << "		" << std::endl;
+			output << "		'create layers" << std::endl;
+			output << "		for i = myCameraCollection.Count - 1 to 0 step -1" << std::endl;
+			output << "			set myCurrentCamera = myCameraCollection(arrSortOut(i,0))" << std::endl;
+			output << "			" << std::endl;
+			output << "			addCameraMappingToMaterial myCollection, myObj, arrayImage(arrSortOut(i,0)), pathTextureFolder, myCurrentCamera, alternativeRender" << std::endl;
+			output << "		next" << std::endl;
+			output << "		" << std::endl;
+			output << "		CreateModel myCollection, , , myModel" << std::endl;
+			output << "		Rotate myModel, -90, 0, 0, siAbsolute, siGlobal, siObj, siX, , , , , , , , 0" << std::endl;
+			output << "	end if" << std::endl;
+			output << "end sub" << std::endl;
+			output << "" << std::endl;
+			output << "sub createCamera(inCameraCollection, inCameraName, inPositionX, inPositionY, inPositionZ, inQuatW, inQuatX, inQuatY, inQuatZ, inRatio, inFocal, inFocalXSI)" << std::endl;
+			output << "	" << std::endl;
+			output << "	GetPrimCamera , inCameraName, , myCameraPrim, myCamera, myCameraInterest" << std::endl;
+			output << "	set nullCamera = myCamera.Parent" << std::endl;
+			output << "" << std::endl;
+			output << "	CutObj myCamera" << std::endl;
+			output << "	DeleteObj myCameraInterest" << std::endl;
+			output << "	DeleteObj nullCamera" << std::endl;
+			output << "	" << std::endl;
+			output << "	myCameraPrim.aspect.Value = inRatio" << std::endl;
+			output << "	if inRatio < 1 then" << std::endl;
+			output << "		myCameraPrim.fovtype.Value = 0" << std::endl;
+			output << "	end if" << std::endl;
+			output << "	myCameraPrim.fov.Value = inFocalXSI" << std::endl;
+			output << "	" << std::endl;
+			output << "	set myKine = myCamera.Kinematics" << std::endl;
+			output << "	myKine.global.parameters(\"posx\").value = inPositionX" << std::endl;
+			output << "	myKine.global.parameters(\"posy\").value = inPositionY" << std::endl;
+			output << "	myKine.global.parameters(\"posz\").value = inPositionZ" << std::endl;
+			output << "	" << std::endl;
+			output << "	set myTransfo = XSIMath.CreateTransform" << std::endl;
+			output << "	set myQuaternion = XSIMath.CreateQuaternion(inQuatW, inQuatX, inQuatY, inQuatZ)" << std::endl;
+			output << "	myQuaternion.GetXYZAngleValues rotX, rotY, rotZ" << std::endl;
+			output << "	" << std::endl;
+			output << "	myKine.global.parameters(\"rotx\").value = XSIMath.RadiansToDegrees(rotX)" << std::endl;
+			output << "	myKine.global.parameters(\"roty\").value = XSIMath.RadiansToDegrees(rotY)" << std::endl;
+			output << "	myKine.global.parameters(\"rotz\").value = XSIMath.RadiansToDegrees(rotZ)" << std::endl;
+			output << "	" << std::endl;
+			output << "	Rotate myCamera, 180, 0, 0, siRelative, 72, siObj, siX, , , , , , , , 0" << std::endl;
+			output << "	" << std::endl;
+			output << "	inCameraCollection.Add myCamera" << std::endl;
+			output << "end sub" << std::endl;
+			output << "" << std::endl;
+			output << "sub addCameraMappingToMaterial(inMyCollection, inMyObj, inImageName, inPathTextureFolder, inCamera, inAlternativeRender)" << std::endl;
+			output << "								" << std::endl;
+			output << "	set myMat = inMyObj.Material" << std::endl;
+			output << "	set myShaderConstant = myMat.Surface.Source.Parent" << std::endl;
+			output << "" << std::endl;
+			output << "	if inAlternativeRender then" << std::endl;
+			output << "		set currentLight = GetPrimLight(\"Infinite.Preset\", \"Infinite_\" & inCameraName)" << std::endl;
+			output << "		set target = inCamera" << std::endl;
+			output << "		MatchTransform currentLight, target, siSRT" << std::endl;
+			output << "		" << std::endl;
+			output << "		set myShaderSoftLight = currentLight.Shaders(0)" << std::endl;
+			output << "		myShaderSoftLight.shadow.Value = True" << std::endl;
+			output << "		myShaderSoftLight.factor.Value = 0" << std::endl;
+			output << "		myShaderSoftLight.intensity.Value = 2" << std::endl;
+			output << "	end if" << std::endl;
+			output << "" << std::endl;
+			output << "	projectionName = \"TexProj_\" + inCamera.Name" << std::endl;
+			output << "	CreateProjection inMyObj, siTxtCamera, siTxtDefaultPlanarXY, null, projectionName, false, null, inCamera.FullName" << std::endl;
+			output << "" << std::endl;
+			output << "	set myGeometry = inMyObj.ActivePrimitive.Geometry" << std::endl;
+			output << "" << std::endl;
+			output << "	set myClusters = myGeometry.Clusters" << std::endl;
+			output << "" << std::endl;
+			output << "	for each cluster in myClusters" << std::endl;
+			output << "		set myProjection = cluster.Properties(projectionName)" << std::endl;
+			output << "		" << std::endl;
+			output << "		if TypeName(myProjection) <> \"Nothing\" then" << std::endl;
+			output << "			exit for" << std::endl;
+			output << "		end if" << std::endl;
+			output << "	next" << std::endl;
+			output << "" << std::endl;
+			output << "	SICreateImageClip inPathTextureFolder & inImageName, , myCurrentClip" << std::endl;
+			output << "	NestShaders myCurrentClip, myMat" << std::endl;
+			output << "" << std::endl;
+			output << "	layerName = \"Layer_\" + inCamera.Name" << std::endl;
+			output << "	set myTextureLayer = AddTextureLayer( , myShaderConstant, layerName)" << std::endl;
+			output << "	myTextureLayer.AddTextureLayerPort myShaderConstant.color" << std::endl;
+			output << "	myTextureLayer.weight.Value = 1" << std::endl;
+			output << "	myTextureLayer.maskmode.Value = true" << std::endl;
+			output << "" << std::endl;
+			output << "	SIConnectShaderToCnxPoint myCurrentClip, myTextureLayer & \".color\", False" << std::endl;
+			output << "" << std::endl;
+			output << "	set myShaderImage = myTextureLayer.color.Source.Parent" << std::endl;
+			output << "" << std::endl;
+			output << "	SetInstanceDataValue inMyObj, myShaderImage.tspace_id, myProjection.Name" << std::endl;
+			output << "" << std::endl;
+			output << "	set myShaderIncidence = CreateShaderFromProgID(\"Softimage.sib_incidence_v2.1.0\",  myMat, \"Incidence\")" << std::endl;
+			output << "	SIConnectShaderToCnxPoint myShaderIncidence.out, myTextureLayer.mask, False" << std::endl;
+			output << "" << std::endl;
+			output << "	if inAlternativeRender then" << std::endl;
+			output << "		myShaderIncidence.mode.Value = 8" << std::endl;
+			output << "		set newRef = SIAddArrayElement(myShaderIncidence.customlights)" << std::endl;
+			output << "		SetReference2 newRef, currentLight" << std::endl;
+			output << "		inMyCollection.Add currentLight" << std::endl;
+			output << "	else" << std::endl;
+			output << "		myShaderIncidence.mode.Value = 7" << std::endl;
+			output << "		CopyPaste inCamera.FullName & \".kine.global.posx\", , myShaderIncidence.custom_vector.x, 1" << std::endl;
+			output << "		CopyPaste inCamera.FullName & \".kine.global.posy\", , myShaderIncidence.custom_vector.y, 1" << std::endl;
+			output << "		CopyPaste inCamera.FullName & \".kine.global.posz\", , myShaderIncidence.custom_vector.z, 1" << std::endl;
+			output << "	end if" << std::endl;
+			output << "	" << std::endl;
+			output << "	inMyCollection.Add inCamera" << std::endl;
+			output << "	" << std::endl;
+			output << "end sub" << std::endl;
+			output << "" << std::endl;
+			output << "Function MonBubbleSort(camArray)" << std::endl;
+			output << "	" << std::endl;
+			output << "	for i = UBound(camArray,1)-1 To 0 Step -1" << std::endl;
+			output << "		for j=0 to i" << std::endl;
+			output << "			cameraName = camArray(j,0)" << std::endl;
+			output << "			distance = camArray(j,1)" << std::endl;
+			output << "			nextDistance = camArray(j+1,1)" << std::endl;
+			output << "			if distance>nextDistance then" << std::endl;
+			output << "				tempCameraName = camArray(j+1,0)" << std::endl;
+			output << "				tempDistance = camArray(j+1,1)" << std::endl;
+			output << "				" << std::endl;
+			output << "				camArray(j+1,0) = camArray(j,0)" << std::endl;
+			output << "				camArray(j+1,1) = camArray(j,1)" << std::endl;
+			output << "				" << std::endl;
+			output << "				camArray(j,0) = tempCameraName" << std::endl;
+			output << "				camArray(j,1) = tempDistance" << std::endl;
+			output << "			end if" << std::endl;
+			output << "		next" << std::endl;
+			output << "	next " << std::endl;
+			output << "	" << std::endl;
+			output << "	MonBubbleSort = camArray" << std::endl;
+			output << "end function" << std::endl;
+			output << "" << std::endl;
+			output << "function main()" << std::endl;
+			output << "	set fso = CreateObject( \"Scripting.FileSystemObject\" )" << std::endl;
+			output << "" << std::endl;
+			output << "	if not fso.FileExists(projectPath & \"\\guid.txt\") then" << std::endl;
+			output << "		logMessage \"Project Path Folder doesn't valid : \" & projectPath, siError" << std::endl;
+			output << "	else" << std::endl;
+			output << "		createMultipleCameraMapping" << std::endl;
+			output << "	end if" << std::endl;
+			output << "end function" << std::endl;
+			output << "" << std::endl;
+			output << "main" << std::endl;
 		}
 		output.close();
 	}

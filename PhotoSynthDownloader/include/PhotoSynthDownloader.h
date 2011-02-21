@@ -46,6 +46,7 @@ namespace PhotoSynth
 			void savePly(const std::string& outputFolder, Parser* parser);
 			void saveCamerasParameters(const std::string& outputFolder, Parser* parser);
 			void save3DSMaxScript(const std::string& outputFolder, Parser* parser);
+			void saveXSIScript(const std::string& outputFolder, Parser* parser);
 
 			boost::asio::io_service* mService;
 	};
