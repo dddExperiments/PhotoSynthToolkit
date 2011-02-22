@@ -27,7 +27,7 @@ PhotoSynth toolkit [http://www.visual-experiments.com/demos/photosynthtoolkit/]:
 - PhotoSynthViewer: Ogre3D PhotoSynth viewer
 - PMVSVisibilityComputer: tool to generate vis.dat from a previous PMVS2 call
 
-The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit6.zip
+The full package is available at http://www.visual-experiments.com/blog/?sdmon=downloads/PhotoSynthToolkit7.zip
 Created by Henri Astre http://www.visual-experiments.com released under MIT license.
 
 Dependencies used:
