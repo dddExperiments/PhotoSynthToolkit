@@ -30,6 +30,19 @@ namespace PhotoSynth
 {
 	class Parser;
 
+	union VertexIndex
+	{		
+		VertexIndex(__int32 index);
+		VertexIndex(unsigned int indexA, unsigned int indexB);
+
+		struct
+		{			
+			unsigned int indexA : 16;
+			unsigned int indexB : 16;
+		};
+		__int32 index;
+	};
+
 	class Downloader
 	{
 		public:
@@ -47,6 +60,7 @@ namespace PhotoSynth
 			void saveCamerasParameters(const std::string& outputFolder, Parser* parser);
 			void save3DSMaxScript(const std::string& outputFolder, Parser* parser);
 			void saveXSIScript(const std::string& outputFolder, Parser* parser);
+			void savePlyForManualClustering(const std::string& outputFolder, Parser* parser);
 
 			boost::asio::io_service* mService;
 	};

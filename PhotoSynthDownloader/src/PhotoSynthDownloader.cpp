@@ -110,6 +110,7 @@ bool Downloader::download(const std::string& guid, const std::string& outputFold
 	savePly(outputFolder, &parser);
 	save3DSMaxScript(outputFolder, &parser);
 	saveXSIScript(outputFolder, &parser);
+	savePlyForManualClustering(outputFolder, &parser);
 
 	return true;
 }
@@ -858,6 +859,77 @@ void Downloader::saveXSIScript(const std::string& outputFolder, Parser* parser)
 			output << "end function" << std::endl;
 			output << "" << std::endl;
 			output << "main" << std::endl;
+		}
+		output.close();
+	}
+}
+
+VertexIndex::VertexIndex(__int32 index)
+{
+	this->index = index;
+}
+
+VertexIndex::VertexIndex(unsigned int indexA, unsigned int indexB)
+{
+	this->indexA = indexA;
+	this->indexB = indexB;
+}
+
+void Downloader::savePlyForManualClustering(const std::string& outputFolder, Parser* parser)
+{
+	if (parser->getNbCoordSystem() > 0)
+	{
+		std::stringstream filepath;
+		filepath << outputFolder << "/bin/cameras_clustering.ply";
+
+		std::ofstream output(filepath.str().c_str(), std::ios::binary);
+		if (output.is_open())
+		{
+			unsigned int nbVertex = parser->getNbCamera(0);
+
+			output << "ply" << std::endl;
+			output << "format binary_little_endian 1.0" << std::endl;
+			output << "element vertex " << nbVertex << std::endl;
+			output << "property float x" << std::endl;
+			output << "property float y" << std::endl;
+			output << "property float z" << std::endl;
+			output << "property float nx" << std::endl;
+			output << "property float ny" << std::endl;
+			output << "property float nz" << std::endl;
+			output << "property uchar red" << std::endl;
+			output << "property uchar green" << std::endl;
+			output << "property uchar blue" << std::endl;
+			output << "property uchar alpha" << std::endl;
+			output << "element face 0" << std::endl;
+			output << "property list uchar int vertex_indices" << std::endl;
+			output << "end_header" << std::endl;
+
+			float* pos           = new float[6];
+			unsigned char* color = new unsigned char[4];
+
+			for (unsigned int i=0; i<nbVertex; ++i)
+			{
+				const PhotoSynth::Camera& cam = parser->getCamera(0, i);
+				pos[0] = cam.position.x;
+				pos[1] = cam.position.y;
+				pos[2] = cam.position.z;
+
+				VertexIndex index((__int32)i);
+				pos[3] = (float)index.indexA;
+				pos[4] = (float)index.indexB;
+				pos[5] = 42;
+
+				color[0] = 0;
+				color[1] = 0;
+				color[2] = 255;
+				color[3] = 255;
+
+				output.write((char*)pos, sizeof(float)*6);
+				output.write((char*)color, sizeof(unsigned char)*4);
+			}
+
+			delete[] pos;
+			delete[] color;
 		}
 		output.close();
 	}
